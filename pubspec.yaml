@@ -1,0 +1,38 @@
+name: verse
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  cached_network_image: ^3.4.1
+  cookie_jar: ^4.0.8
+  dio: ^5.8.0+1
+  dio_cookie_manager: ^3.2.0
+  encrypt: ^5.0.3
+  flutter:
+    sdk: flutter
+  font_awesome_flutter: ^10.7.0
+  json_annotation: ^4.9.0
+  just_audio: ^0.9.36
+  just_audio_windows: ^0.2.2
+  path_provider: ^2.1.5
+  pointycastle: ^3.9.1
+  pretty_dio_logger: ^1.4.0
+  provider: ^6.0.5
+  qr_flutter: ^4.1.0
+  audio_video_progress_bar: ^2.0.3
+  palette_generator: ^0.3.3+6
+  material_color_utilities: ^0.11.1
+  context_menus: ^2.0.0+1
+  bitsdojo_window: ^0.1.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
