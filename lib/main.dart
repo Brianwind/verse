@@ -15,7 +15,9 @@ import 'login_page.dart';
 import 'settings_page.dart';
 import 'profile_page.dart';
 import 'player_screen.dart';
-import 'home_page.dart'; // 导入新的HomePage组件
+import 'home_page.dart';
+import 'windows_smtc_service.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 // 添加自定义TitleBar组件
 class CustomTitleBar extends StatelessWidget {
@@ -109,6 +111,10 @@ class CustomTitleBar extends StatelessWidget {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 初始化 Windows SMTC 服务，只在 Windows 平台生效
+  await WindowsSmtcService.initialize();
+
   await NeteaseMusicApi.init();
   runApp(
     ChangeNotifierProvider(
@@ -117,7 +123,7 @@ void main() async {
     ),
   );
   doWhenWindowReady(() {
-    const initialSize = Size(800, 500);
+    const initialSize = Size(1200, 800);
     appWindow.minSize = initialSize;
     appWindow.size = initialSize;
     appWindow.alignment = Alignment.center;
@@ -141,6 +147,13 @@ class _MainAppState extends State<MainApp> {
   @override
   void initState() {
     super.initState();
+
+    // 初始化完成后绑定 SMTC 服务到播放器模型
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final playerModel = Provider.of<PlayerModel>(context, listen: false);
+      WindowsSmtcService.instance.attachPlayer(playerModel);
+    });
+
     NeteaseMusicApi().usc.listenLoginState((state, info) {
       setState(() {
         _logined = state == LoginState.Logined;
@@ -193,6 +206,7 @@ class _MainAppState extends State<MainApp> {
           colorScheme: ColorScheme.fromSwatch(
             primarySwatch: Colors.blue,
           ).copyWith(secondary: Colors.blue),
+          fontFamily: GoogleFonts.notoSansSc().fontFamily,
         ),
         darkTheme: ThemeData(
           brightness: Brightness.dark,
@@ -201,6 +215,7 @@ class _MainAppState extends State<MainApp> {
             brightness: Brightness.dark,
             primarySwatch: Colors.blue,
           ).copyWith(secondary: Colors.blue),
+          fontFamily: GoogleFonts.notoSansSc().fontFamily,
         ),
         themeMode: _themeMode,
         debugShowCheckedModeBanner: false,

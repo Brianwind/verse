@@ -109,17 +109,22 @@ class _ProfilePageState extends State<ProfilePage> {
                       child: ListTile(
                         leading:
                             likedPlaylist.coverImgUrl != null
-                                ? CachedNetworkImage(
-                                  imageUrl: likedPlaylist.coverImgUrl!,
-                                  width: 48,
-                                  height: 48,
-                                  fit: BoxFit.cover,
-                                  placeholder:
-                                      (context, url) =>
-                                          const SizedBox(width: 48, height: 48),
-                                  errorWidget:
-                                      (context, url, error) =>
-                                          const Icon(Icons.broken_image),
+                                ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: CachedNetworkImage(
+                                    imageUrl: likedPlaylist.coverImgUrl!,
+                                    width: 48,
+                                    height: 48,
+                                    fit: BoxFit.cover,
+                                    placeholder:
+                                        (context, url) => const SizedBox(
+                                          width: 48,
+                                          height: 48,
+                                        ),
+                                    errorWidget:
+                                        (context, url, error) =>
+                                            const Icon(Icons.broken_image),
+                                  ),
                                 )
                                 : const Icon(Icons.favorite, color: Colors.red),
                         title: Text(likedPlaylist.name ?? '我喜欢的音乐'),
@@ -158,22 +163,27 @@ class _ProfilePageState extends State<ProfilePage> {
                                 child: ListTile(
                                   leading:
                                       pl.coverImgUrl != null
-                                          ? CachedNetworkImage(
-                                            imageUrl: pl.coverImgUrl!,
-                                            width: 48,
-                                            height: 48,
-                                            fit: BoxFit.cover,
-                                            placeholder:
-                                                (context, url) =>
-                                                    const SizedBox(
-                                                      width: 48,
-                                                      height: 48,
-                                                    ),
-                                            errorWidget:
-                                                (context, url, error) =>
-                                                    const Icon(
-                                                      Icons.broken_image,
-                                                    ),
+                                          ? ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                            child: CachedNetworkImage(
+                                              imageUrl: pl.coverImgUrl!,
+                                              width: 48,
+                                              height: 48,
+                                              fit: BoxFit.cover,
+                                              placeholder:
+                                                  (context, url) =>
+                                                      const SizedBox(
+                                                        width: 48,
+                                                        height: 48,
+                                                      ),
+                                              errorWidget:
+                                                  (context, url, error) =>
+                                                      const Icon(
+                                                        Icons.broken_image,
+                                                      ),
+                                            ),
                                           )
                                           : const Icon(Icons.queue_music),
                                   title: Text(pl.name ?? '无名歌单'),
@@ -305,19 +315,23 @@ class _TrackListTileState extends State<_TrackListTile> {
         child: Container(
           color: _isHovered ? Theme.of(context).hoverColor : null,
           child: ListTile(
-            mouseCursor: SystemMouseCursors.click,
+            mouseCursor: SystemMouseCursors.basic,
             leading:
                 widget.playTrack.al.picUrl != null
-                    ? CachedNetworkImage(
-                      imageUrl: widget.playTrack.al.picUrl!,
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
-                      placeholder:
-                          (context, url) =>
-                              const SizedBox(width: 48, height: 48),
-                      errorWidget:
-                          (context, url, error) => const Icon(Icons.music_note),
+                    ? ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: CachedNetworkImage(
+                        imageUrl: widget.playTrack.al.picUrl!,
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
+                        placeholder:
+                            (context, url) =>
+                                const SizedBox(width: 48, height: 48),
+                        errorWidget:
+                            (context, url, error) =>
+                                const Icon(Icons.music_note),
+                      ),
                     )
                     : const Icon(Icons.music_note),
             title: Text(widget.playTrack.name ?? '未知歌曲'),

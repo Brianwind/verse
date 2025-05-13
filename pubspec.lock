@@ -89,6 +89,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.1.2"
+  build_cli_annotations:
+    dependency: transitive
+    description:
+      name: build_cli_annotations
+      sha256: b59d2769769efd6c9ff6d4c4cede0be115a566afc591705c2040b707534b1172
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "2.1.0"
   cached_network_image:
     dependency: "direct main"
     description:
@@ -254,6 +262,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "5.0.0"
+  flutter_rust_bridge:
+    dependency: transitive
+    description:
+      name: flutter_rust_bridge
+      sha256: "0ad5079de35d317650fec59b26cb4d0c116ebc2ce703a29f9367513b8a91c287"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "2.5.0"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -272,6 +288,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "10.8.0"
+  google_fonts:
+    dependency: "direct main"
+    description:
+      name: google_fonts
+      sha256: b1ac0fe2832c9cc95e5e88b57d627c5e68c223b9657f4b96e1487aa9098c7b82
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "6.2.1"
   http:
     dependency: transitive
     description:
@@ -541,6 +565,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  smtc_windows:
+    dependency: "direct main"
+    description:
+      name: smtc_windows
+      sha256: "80f7c10867da485ffdf87f842bf27e6763589933c18c11af5dc1cd1e158c3154"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "1.0.0"
   source_span:
     dependency: transitive
     description:

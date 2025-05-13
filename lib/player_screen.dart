@@ -261,7 +261,9 @@ class _PlayerScreenState extends State<PlayerScreen>
               padding: const EdgeInsets.only(right: 40.0),
               child: Center(
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: 540),
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width / 3,
+                  ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -303,7 +305,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                           );
                         },
                       ),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 16),
                       Hero(
                         tag: 'song-title-${song.id}',
                         child: Material(

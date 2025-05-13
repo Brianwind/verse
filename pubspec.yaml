@@ -28,6 +28,11 @@ dependencies:
   material_color_utilities: ^0.11.1
   context_menus: ^2.0.0+1
   bitsdojo_window: ^0.1.6
+  smtc_windows: ^1.0.0
+  google_fonts: ^6.2.1
+
+assets:
+  - assets/font/
 
 dev_dependencies:
   flutter_test:
