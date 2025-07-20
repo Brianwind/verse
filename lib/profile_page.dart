@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:context_menus/context_menus.dart';
 
 import 'player_model.dart';
 import 'netease_api/src/netease_api.dart';
-import 'netease_api/src/api/user/bean.dart';
 import 'netease_api/src/api/play/bean.dart';
 import 'main.dart';
 
@@ -248,12 +248,56 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.playlistName),
-        leading: IconButton(
-          tooltip: '',
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).maybePop(),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(88),
+        child: Column(
+          children: [
+            // 顶部窗口拖动区和窗口按钮，统一样式
+            Material(
+              child: Container(
+                height: 32,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: WindowTitleBarBox(
+                        child: MoveWindow(
+                          child: Row(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(left: 12.0),
+                                child: Text(
+                                  'Verse',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    CustomWindowButtons(),
+                  ],
+                ),
+              ),
+            ),
+            // AppBar单独显示
+            AppBar(
+              title: Text(widget.playlistName),
+              leading: IconButton(
+                tooltip: '',
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.of(context).maybePop(),
+              ),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              shadowColor: Colors.transparent,
+              surfaceTintColor: Colors.transparent,
+              toolbarHeight: 56,
+            ),
+          ],
         ),
       ),
       body:

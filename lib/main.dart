@@ -19,13 +19,12 @@ import 'home_page.dart';
 import 'windows_smtc_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-// 添加自定义TitleBar组件
-class CustomTitleBar extends StatelessWidget {
-  const CustomTitleBar({super.key});
+// 可复用窗口控制按钮组件
+class CustomWindowButtons extends StatelessWidget {
+  const CustomWindowButtons({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // 定义按钮颜色
     final buttonColors = WindowButtonColors(
       iconNormal: Theme.of(context).colorScheme.onSurface,
       mouseOver: Theme.of(context).colorScheme.primary.withOpacity(0.1),
@@ -33,7 +32,6 @@ class CustomTitleBar extends StatelessWidget {
       iconMouseOver: Theme.of(context).colorScheme.primary,
       iconMouseDown: Theme.of(context).colorScheme.primary,
     );
-
     final closeButtonColors = WindowButtonColors(
       iconNormal: Theme.of(context).colorScheme.onSurface,
       mouseOver: Colors.red,
@@ -41,72 +39,117 @@ class CustomTitleBar extends StatelessWidget {
       iconMouseOver: Colors.white,
       iconMouseDown: Colors.white,
     );
-
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        height: 32,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
+    return Row(
+      children: [
+        WindowButton(
+          colors: buttonColors,
+          iconBuilder:
+              (context) =>
+                  Center(child: FaIcon(FontAwesomeIcons.minus, size: 12)),
+          onPressed: () => appWindow.minimize(),
         ),
-        child: Row(
-          children: [
-            // 左侧可拖动区域
-            Expanded(
-              child: WindowTitleBarBox(
-                child: MoveWindow(
-                  child: Row(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(left: 12.0),
-                        child: Text(
-                          'Verse',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
+        WindowButton(
+          colors: buttonColors,
+          iconBuilder:
+              (context) =>
+                  Center(child: FaIcon(FontAwesomeIcons.circle, size: 12)),
+          onPressed: () => appWindow.maximizeOrRestore(),
+        ),
+        WindowButton(
+          colors: closeButtonColors,
+          iconBuilder:
+              (context) =>
+                  Center(child: FaIcon(FontAwesomeIcons.xmark, size: 12)),
+          onPressed: () => appWindow.close(),
+        ),
+      ],
+    );
+  }
+}
+
+@override
+Widget build(BuildContext context) {
+  // 定义按钮颜色
+  final buttonColors = WindowButtonColors(
+    iconNormal: Theme.of(context).colorScheme.onSurface,
+    mouseOver: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+    mouseDown: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+    iconMouseOver: Theme.of(context).colorScheme.primary,
+    iconMouseDown: Theme.of(context).colorScheme.primary,
+  );
+
+  final closeButtonColors = WindowButtonColors(
+    iconNormal: Theme.of(context).colorScheme.onSurface,
+    mouseOver: Colors.red,
+    mouseDown: Colors.red.shade800,
+    iconMouseOver: Colors.white,
+    iconMouseDown: Colors.white,
+  );
+
+  return Material(
+    color: Colors.transparent,
+    child: Container(
+      height: 32,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // 左侧可拖动区域
+          Expanded(
+            child: WindowTitleBarBox(
+              child: MoveWindow(
+                child: Row(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(left: 12.0),
+                      child: Text(
+                        'Verse',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            // 右侧窗口控制按钮
-            WindowButton(
-              colors: buttonColors,
-              iconBuilder:
-                  (context) =>
-                      Center(child: FaIcon(FontAwesomeIcons.minus, size: 12)),
-              onPressed: () => appWindow.minimize(),
-            ),
-            WindowButton(
-              colors: buttonColors,
-              iconBuilder:
-                  (context) =>
-                      Center(child: FaIcon(FontAwesomeIcons.circle, size: 12)),
-              onPressed: () => appWindow.maximizeOrRestore(),
-            ),
-            WindowButton(
-              colors: closeButtonColors,
-              iconBuilder:
-                  (context) =>
-                      Center(child: FaIcon(FontAwesomeIcons.xmark, size: 12)),
-              onPressed: () => appWindow.close(),
-            ),
-          ],
-        ),
+          ),
+          // 右侧窗口控制按钮
+          WindowButton(
+            colors: buttonColors,
+            iconBuilder:
+                (context) =>
+                    Center(child: FaIcon(FontAwesomeIcons.minus, size: 12)),
+            onPressed: () => appWindow.minimize(),
+          ),
+          WindowButton(
+            colors: buttonColors,
+            iconBuilder:
+                (context) =>
+                    Center(child: FaIcon(FontAwesomeIcons.circle, size: 12)),
+            onPressed: () => appWindow.maximizeOrRestore(),
+          ),
+          WindowButton(
+            colors: closeButtonColors,
+            iconBuilder:
+                (context) =>
+                    Center(child: FaIcon(FontAwesomeIcons.xmark, size: 12)),
+            onPressed: () => appWindow.close(),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
 }
 
 void main() async {
@@ -221,8 +264,37 @@ class _MainAppState extends State<MainApp> {
         debugShowCheckedModeBanner: false,
         home: Column(
           children: [
-            // 添加自定义TitleBar
-            const CustomTitleBar(),
+            // 顶部窗口拖动区和窗口按钮
+            Material(
+              child: Container(
+                height: 32,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: WindowTitleBarBox(
+                        child: MoveWindow(
+                          child: Row(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(left: 12.0),
+                                child: Text(
+                                  'Verse',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    CustomWindowButtons(),
+                  ],
+                ),
+              ),
+            ),
             Expanded(
               child: Stack(
                 children: [
@@ -320,7 +392,7 @@ class PlayerBar extends StatelessWidget {
                       PageRouteBuilder(
                         pageBuilder:
                             (context, animation, secondaryAnimation) =>
-                                const PlayerScreen(), // 移除不存在的参数staticFluidMode
+                                const PlayerScreen(),
                         transitionDuration: const Duration(milliseconds: 500),
                         transitionsBuilder: (
                           context,

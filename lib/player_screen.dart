@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
@@ -102,7 +103,7 @@ class _PlayerScreenState extends State<PlayerScreen>
 
   void _handleMouseMove(PointerHoverEvent event) {
     // 检查鼠标是否在AppBar区域
-    _isMouseOverAppBar = event.position.dy < 40; // AppBar高度为40
+    _isMouseOverAppBar = event.position.dy < 73; // AppBar高度为73
 
     if (!_showControls) {
       setState(() {
