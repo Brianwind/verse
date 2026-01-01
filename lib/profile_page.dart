@@ -67,6 +67,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final player = context.watch<PlayerModel>();
+    final bottomPadding = player.currentSong != null ? 100.0 : 0.0;
+
     final profile = NeteaseMusicApi().usc.accountInfo?.profile;
     Play? likedPlaylist;
     List<Play> otherPlaylists = [];
@@ -89,6 +92,7 @@ class _ProfilePageState extends State<ProfilePage> {
               : _playlists == null || _playlists!.isEmpty
               ? const Center(child: Text('暂无歌单'))
               : ListView(
+                padding: EdgeInsets.only(bottom: bottomPadding),
                 children: [
                   if (likedPlaylist != null) ...[
                     const Padding(

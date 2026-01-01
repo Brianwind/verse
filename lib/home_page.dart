@@ -71,6 +71,9 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final player = context.watch<PlayerModel>();
+    final bottomPadding = player.currentSong != null ? 100.0 : 0.0;
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -159,6 +162,7 @@ class _HomePageState extends State<HomePage> {
                 );
               }, childCount: _recommendSongs.length),
             ),
+          SliverToBoxAdapter(child: SizedBox(height: bottomPadding)),
         ],
       ),
     );

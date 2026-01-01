@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'player_model.dart';
 
 class SettingsPage extends StatelessWidget {
   final ThemeMode themeMode;
@@ -12,9 +14,13 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final player = context.watch<PlayerModel>();
+    final bottomPadding = player.currentSong != null ? 100.0 : 0.0;
+
     return Scaffold(
       appBar: AppBar(title: const Text('设置')),
       body: ListView(
+        padding: EdgeInsets.only(bottom: bottomPadding),
         children: [
           ListTile(
             title: const Text('主题模式'),

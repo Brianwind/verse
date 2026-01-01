@@ -21,6 +21,7 @@ class PlayerModel extends ChangeNotifier {
   List<int> _shuffleOrder = [];
 
   bool _isAutoChanging = false;
+  bool _isSwitchingSong = false; // 添加切歌状态标志
 
   late final StreamSubscription<PlaybackEvent> _playbackEventSubscription;
 
@@ -92,6 +93,10 @@ class PlayerModel extends ChangeNotifier {
     });
 
     _audioPlayer.playerStateStream.listen((state) {
+      // 在切歌过程中，忽略 playing=false 的状态更新，保持 UI 为播放状态
+      if (_isSwitchingSong && !state.playing) {
+        return;
+      }
       _isPlaying = state.playing;
       notifyListeners();
     });
@@ -291,6 +296,8 @@ class PlayerModel extends ChangeNotifier {
       _preloadNextSongUrl();
     });
 
+    _isSwitchingSong = true; // 标记开始切歌
+
     _currentSong = song;
     _songUrl = url;
 
@@ -309,6 +316,8 @@ class PlayerModel extends ChangeNotifier {
       await _audioPlayer.stop();
 
       debugPrint("设置音频源: $url");
+      final stopwatch = Stopwatch()..start();
+
       // 明确等待音频源设置完成
       await _audioPlayer
           .setAudioSource(
@@ -323,8 +332,10 @@ class PlayerModel extends ChangeNotifier {
             },
           );
 
+      debugPrint("设置音频源完成，耗时: ${stopwatch.elapsedMilliseconds}ms");
+
       // 强制延迟一小段时间，确保音频源已准备就绪
-      await Future.delayed(const Duration(milliseconds: 50));
+      // await Future.delayed(const Duration(milliseconds: 50));
 
       // 确保UI状态为播放
       if (!_isPlaying) {
@@ -353,8 +364,17 @@ class PlayerModel extends ChangeNotifier {
       debugPrint("播放歌曲时出错: $e");
       // 出错时尝试播放下一首
       if (_playlistTracks.isNotEmpty) {
-        return await playNext();
+        await playNext();
       }
+    } finally {
+      _isSwitchingSong = false; // 切歌结束
+      // 移除手动同步，完全依赖流监听来更新状态，避免 play() 尚未生效时错误地将状态重置为 false
+      /*
+      if (_isPlaying != _audioPlayer.playing) {
+        _isPlaying = _audioPlayer.playing;
+        notifyListeners();
+      }
+      */
     }
   }
 

@@ -16,6 +16,7 @@ import 'settings_page.dart';
 import 'profile_page.dart';
 import 'player_screen.dart';
 import 'home_page.dart';
+import 'search_page.dart';
 import 'windows_smtc_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -249,7 +250,7 @@ class _MainAppState extends State<MainApp> {
           colorScheme: ColorScheme.fromSwatch(
             primarySwatch: Colors.blue,
           ).copyWith(secondary: Colors.blue),
-          fontFamily: GoogleFonts.notoSansSc().fontFamily,
+          fontFamily: 'NotoSansSC',
         ),
         darkTheme: ThemeData(
           brightness: Brightness.dark,
@@ -258,7 +259,7 @@ class _MainAppState extends State<MainApp> {
             brightness: Brightness.dark,
             primarySwatch: Colors.blue,
           ).copyWith(secondary: Colors.blue),
-          fontFamily: GoogleFonts.notoSansSc().fontFamily,
+          fontFamily: 'NotoSansSC',
         ),
         themeMode: _themeMode,
         debugShowCheckedModeBanner: false,
@@ -311,6 +312,10 @@ class _MainAppState extends State<MainApp> {
                               label: Text('首页'),
                             ),
                             NavigationRailDestination(
+                              icon: Icon(Icons.search),
+                              label: Text('搜索'),
+                            ),
+                            NavigationRailDestination(
                               icon: Icon(Icons.person),
                               label: Text('我的'),
                             ),
@@ -331,8 +336,10 @@ class _MainAppState extends State<MainApp> {
                               if (_selectedIndex == 0) {
                                 return const HomePage();
                               } else if (_selectedIndex == 1) {
-                                return const ProfilePage();
+                                return const SearchPage();
                               } else if (_selectedIndex == 2) {
+                                return const ProfilePage();
+                              } else if (_selectedIndex == 3) {
                                 return LoginPage();
                               } else {
                                 return SettingsPage(

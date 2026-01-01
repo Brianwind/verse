@@ -195,6 +195,8 @@ class _PlayerScreenState extends State<PlayerScreen>
                 onPressed: () => Navigator.of(context).pop(),
               ),
             ),
+            title: SizedBox(height: 40, child: MoveWindow()),
+            actions: [_PlayerWindowButtons(color: _themeColors?.textColor)],
           ),
         ),
       ),
@@ -785,5 +787,56 @@ class _PlayerScreenState extends State<PlayerScreen>
         context,
       ).showSnackBar(SnackBar(content: Text('加载歌单失败: $e')));
     }
+  }
+}
+
+class _PlayerWindowButtons extends StatelessWidget {
+  final Color? color;
+  const _PlayerWindowButtons({this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final buttonColor = color ?? Theme.of(context).colorScheme.onSurface;
+    final buttonColors = WindowButtonColors(
+      iconNormal: buttonColor,
+      mouseOver: buttonColor.withOpacity(0.1),
+      mouseDown: buttonColor.withOpacity(0.2),
+      iconMouseOver: buttonColor,
+      iconMouseDown: buttonColor,
+    );
+
+    final closeButtonColors = WindowButtonColors(
+      iconNormal: buttonColor,
+      mouseOver: Colors.red,
+      mouseDown: Colors.red.shade800,
+      iconMouseOver: Colors.white,
+      iconMouseDown: Colors.white,
+    );
+
+    return Row(
+      children: [
+        WindowButton(
+          colors: buttonColors,
+          iconBuilder:
+              (context) =>
+                  Center(child: FaIcon(FontAwesomeIcons.minus, size: 12)),
+          onPressed: () => appWindow.minimize(),
+        ),
+        WindowButton(
+          colors: buttonColors,
+          iconBuilder:
+              (context) =>
+                  Center(child: FaIcon(FontAwesomeIcons.circle, size: 12)),
+          onPressed: () => appWindow.maximizeOrRestore(),
+        ),
+        WindowButton(
+          colors: closeButtonColors,
+          iconBuilder:
+              (context) =>
+                  Center(child: FaIcon(FontAwesomeIcons.xmark, size: 12)),
+          onPressed: () => appWindow.close(),
+        ),
+      ],
+    );
   }
 }
