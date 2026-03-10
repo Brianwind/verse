@@ -8,6 +8,7 @@ import 'player_model.dart';
 import 'netease_api/src/netease_api.dart';
 import 'netease_api/src/api/play/bean.dart';
 import 'main.dart';
+import 'constants/image_request.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -112,11 +113,17 @@ class _ProfilePageState extends State<ProfilePage> {
                       onTap: () => _openPlaylistDetail(context, likedPlaylist!),
                       child: ListTile(
                         leading:
-                            likedPlaylist.coverImgUrl != null
+                            normalizeImageUrl(likedPlaylist.coverImgUrl) != null
                                 ? ClipRRect(
                                   borderRadius: BorderRadius.circular(6),
                                   child: CachedNetworkImage(
-                                    imageUrl: likedPlaylist.coverImgUrl!,
+                                    imageUrl:
+                                        normalizeImageUrl(
+                                          likedPlaylist.coverImgUrl,
+                                        )!,
+                                    httpHeaders: imageHeadersFor(
+                                      likedPlaylist.coverImgUrl,
+                                    ),
                                     width: 48,
                                     height: 48,
                                     fit: BoxFit.cover,
@@ -166,13 +173,19 @@ class _ProfilePageState extends State<ProfilePage> {
                                         : null,
                                 child: ListTile(
                                   leading:
-                                      pl.coverImgUrl != null
+                                      normalizeImageUrl(pl.coverImgUrl) != null
                                           ? ClipRRect(
                                             borderRadius: BorderRadius.circular(
                                               6,
                                             ),
                                             child: CachedNetworkImage(
-                                              imageUrl: pl.coverImgUrl!,
+                                              imageUrl:
+                                                  normalizeImageUrl(
+                                                    pl.coverImgUrl,
+                                                  )!,
+                                              httpHeaders: imageHeadersFor(
+                                                pl.coverImgUrl,
+                                              ),
                                               width: 48,
                                               height: 48,
                                               fit: BoxFit.cover,
@@ -347,6 +360,7 @@ class _TrackListTileState extends State<_TrackListTile> {
 
   @override
   Widget build(BuildContext context) {
+    final coverUrl = normalizeImageUrl(widget.playTrack.al.picUrl);
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -365,11 +379,12 @@ class _TrackListTileState extends State<_TrackListTile> {
           child: ListTile(
             mouseCursor: SystemMouseCursors.basic,
             leading:
-                widget.playTrack.al.picUrl != null
+                coverUrl != null
                     ? ClipRRect(
                       borderRadius: BorderRadius.circular(6),
                       child: CachedNetworkImage(
-                        imageUrl: widget.playTrack.al.picUrl!,
+                        imageUrl: coverUrl,
+                        httpHeaders: imageHeadersFor(coverUrl),
                         width: 48,
                         height: 48,
                         fit: BoxFit.cover,

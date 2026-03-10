@@ -10,6 +10,7 @@ import 'netease_api/netease_music_api.dart';
 import 'player_model.dart';
 import 'lyrics_view.dart';
 import 'fluid_background.dart'; // 导入流体背景组件
+import 'constants/image_request.dart';
 
 class PlayerScreen extends StatefulWidget {
   const PlayerScreen({super.key});
@@ -129,7 +130,7 @@ class _PlayerScreenState extends State<PlayerScreen>
     if (song == null)
       return const Scaffold(body: Center(child: Text('暂无播放歌曲')));
     final artists = song.ar?.map((a) => a.name).join(', ') ?? '';
-    final cover = song.al?.picUrl;
+    final cover = normalizeImageUrl(song.al?.picUrl);
     final duration = player.duration;
     final position = player.position;
 
@@ -286,6 +287,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                                   cover != null
                                       ? CachedNetworkImage(
                                         imageUrl: cover,
+                                        httpHeaders: imageHeadersFor(cover),
                                         width: imageSize,
                                         height: imageSize,
                                         fit: BoxFit.cover,
@@ -685,13 +687,17 @@ class _PlayerScreenState extends State<PlayerScreen>
                   itemCount: userPlaylists.length,
                   itemBuilder: (itemContext, index) {
                     final playlist = userPlaylists[index];
+                    final playlistCover = normalizeImageUrl(
+                      playlist.coverImgUrl,
+                    );
                     return ListTile(
                       leading:
-                          playlist.coverImgUrl != null
+                          playlistCover != null
                               ? ClipRRect(
                                 borderRadius: BorderRadius.circular(4),
                                 child: CachedNetworkImage(
-                                  imageUrl: playlist.coverImgUrl!,
+                                  imageUrl: playlistCover,
+                                  httpHeaders: imageHeadersFor(playlistCover),
                                   width: 40,
                                   height: 40,
                                   fit: BoxFit.cover,

@@ -19,6 +19,7 @@ import 'home_page.dart';
 import 'search_page.dart';
 import 'windows_smtc_service.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'constants/image_request.dart';
 
 // 可复用窗口控制按钮组件
 class CustomWindowButtons extends StatelessWidget {
@@ -378,7 +379,7 @@ class PlayerBar extends StatelessWidget {
     final song = player.currentSong;
     if (song == null) return SizedBox.shrink();
     final artists = song.ar?.map((a) => a.name).join(', ') ?? '';
-    final cover = song.al?.picUrl;
+    final cover = normalizeImageUrl(song.al?.picUrl);
     final duration = player.duration;
     final position = player.position;
     return SafeArea(
@@ -588,6 +589,7 @@ class _PlayerBarCoverState extends State<PlayerBarCover> {
                 borderRadius: BorderRadius.circular(6),
                 child: CachedNetworkImage(
                   imageUrl: widget.coverUrl,
+                  httpHeaders: imageHeadersFor(widget.coverUrl),
                   width: 56,
                   height: 56,
                   fit: BoxFit.cover,
@@ -725,13 +727,15 @@ void _showAddToPlaylistDialog(
                 itemCount: userPlaylists.length,
                 itemBuilder: (itemContext, index) {
                   final playlist = userPlaylists[index];
+                  final playlistCover = normalizeImageUrl(playlist.coverImgUrl);
                   return ListTile(
                     leading:
-                        playlist.coverImgUrl != null
+                        playlistCover != null
                             ? ClipRRect(
                               borderRadius: BorderRadius.circular(4),
                               child: CachedNetworkImage(
-                                imageUrl: playlist.coverImgUrl!,
+                                imageUrl: playlistCover,
+                                httpHeaders: imageHeadersFor(playlistCover),
                                 width: 40,
                                 height: 40,
                                 fit: BoxFit.cover,

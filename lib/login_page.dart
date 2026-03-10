@@ -3,6 +3,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:async';
 import 'netease_api/src/netease_api.dart';
 import 'netease_api/src/api/login/bean.dart';
+import 'constants/image_request.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -83,6 +84,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     final isLogined = NeteaseMusicApi().usc.isLogined;
     final profile = NeteaseMusicApi().usc.accountInfo?.profile;
+    final avatarUrl = normalizeImageUrl(profile?.avatarUrl);
 
     if (isLogined && profile != null) {
       return Center(
@@ -92,13 +94,14 @@ class _LoginPageState extends State<LoginPage> {
             CircleAvatar(
               radius: 40,
               backgroundImage:
-                  profile.avatarUrl != null
-                      ? NetworkImage(profile.avatarUrl!)
+                  avatarUrl != null
+                      ? NetworkImage(
+                        avatarUrl,
+                        headers: imageHeadersFor(avatarUrl),
+                      )
                       : null,
               child:
-                  profile.avatarUrl == null
-                      ? const Icon(Icons.person, size: 40)
-                      : null,
+                  avatarUrl == null ? const Icon(Icons.person, size: 40) : null,
             ),
             const SizedBox(height: 16),
             Text(

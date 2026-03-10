@@ -5,6 +5,7 @@ import 'package:palette_generator/palette_generator.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:material_color_utilities/material_color_utilities.dart';
+import 'constants/image_request.dart';
 
 // 计算两个颜色之间的欧几里得距离的工具方法
 double _calculateColorDistance(Color color1, Color color2) {
@@ -129,7 +130,11 @@ class _ColorCache {
   // 提取颜色并生成Material主题
   static Future<ImageThemeColors> _extractThemeColors(String url) async {
     try {
-      final NetworkImage image = NetworkImage(url);
+      final resolvedUrl = normalizeImageUrl(url) ?? url;
+      final CachedNetworkImageProvider image = CachedNetworkImageProvider(
+        resolvedUrl,
+        headers: imageHeadersFor(resolvedUrl),
+      );
 
       // 先使用PaletteGenerator获取一组颜色
       final PaletteGenerator palette = await PaletteGenerator.fromImageProvider(
@@ -236,8 +241,9 @@ class FluidBackground extends StatefulWidget {
 
   // 添加预加载静态方法
   static Future<void> preloadBackground(String? imageUrl) async {
-    if (imageUrl != null && imageUrl.isNotEmpty) {
-      await _ColorCache.preloadThemeColors(imageUrl);
+    final normalizedUrl = normalizeImageUrl(imageUrl);
+    if (normalizedUrl != null) {
+      await _ColorCache.preloadThemeColors(normalizedUrl);
     }
   }
 
@@ -245,10 +251,11 @@ class FluidBackground extends StatefulWidget {
   static Future<ImageThemeColors> getThemeColorsForImage(
     String? imageUrl,
   ) async {
-    if (imageUrl == null || imageUrl.isEmpty) {
+    final normalizedUrl = normalizeImageUrl(imageUrl);
+    if (normalizedUrl == null) {
       return ImageThemeColors.fallback();
     }
-    return await _ColorCache.getThemeColorsAsync(imageUrl);
+    return await _ColorCache.getThemeColorsAsync(normalizedUrl);
   }
 
   @override
@@ -260,7 +267,7 @@ class _FluidBackgroundState extends State<FluidBackground>
   ImageThemeColors? _themeColors;
   bool _imageReady = false;
   bool _isLoading = false;
-  NetworkImage? _backgroundImage;
+  String? _resolvedImageUrl;
   Completer<void>? _loadingCompleter;
 
   @override
@@ -286,9 +293,14 @@ class _FluidBackgroundState extends State<FluidBackground>
   }
 
   void _processImageUrl(String url) {
-    if (_ColorCache.hasThemeColors(url)) {
+    final normalizedUrl = normalizeImageUrl(url);
+    if (normalizedUrl == null) return;
+
+    _resolvedImageUrl = normalizedUrl;
+
+    if (_ColorCache.hasThemeColors(normalizedUrl)) {
       // 如果缓存中已有该URL的颜色信息，直接使用
-      final cachedColors = _ColorCache.getThemeColors(url);
+      final cachedColors = _ColorCache.getThemeColors(normalizedUrl);
       setState(() {
         _themeColors = cachedColors;
         _imageReady = true;
@@ -304,17 +316,13 @@ class _FluidBackgroundState extends State<FluidBackground>
       }
     } else {
       // 否则加载图片并提取颜色
-      _backgroundImage = NetworkImage(url);
       _loadImageAndColors();
     }
   }
 
   // 加载图像和生成颜色
   Future<void> _loadImageAndColors() async {
-    if (widget.imageUrl == null ||
-        widget.imageUrl!.isEmpty ||
-        _backgroundImage == null)
-      return;
+    if (widget.imageUrl == null || widget.imageUrl!.isEmpty) return;
 
     // 防止重复加载
     if (_isLoading) {
@@ -330,10 +338,11 @@ class _FluidBackgroundState extends State<FluidBackground>
     });
 
     try {
+      final resolvedUrl = _resolvedImageUrl;
+      if (resolvedUrl == null) return;
+
       // 尝试从缓存中获取颜色或等待颜色加载完成
-      final themeColors = await _ColorCache.getThemeColorsAsync(
-        widget.imageUrl!,
-      );
+      final themeColors = await _ColorCache.getThemeColorsAsync(resolvedUrl);
 
       if (mounted) {
         setState(() {
@@ -381,7 +390,9 @@ class _FluidBackgroundState extends State<FluidBackground>
   @override
   Widget build(BuildContext context) {
     // 如果没有图像URL，则显示默认背景
-    if (widget.imageUrl == null || widget.imageUrl!.isEmpty) {
+    final resolvedImageUrl =
+        _resolvedImageUrl ?? normalizeImageUrl(widget.imageUrl);
+    if (resolvedImageUrl == null) {
       return Container(color: Theme.of(context).scaffoldBackgroundColor);
     }
 
@@ -406,7 +417,8 @@ class _FluidBackgroundState extends State<FluidBackground>
           duration: const Duration(milliseconds: 400),
           opacity: _imageReady ? 1.0 : 0.0,
           child: CachedNetworkImage(
-            imageUrl: widget.imageUrl!,
+            imageUrl: resolvedImageUrl,
+            httpHeaders: imageHeadersFor(resolvedImageUrl),
             fit: BoxFit.cover,
             width: double.infinity,
             height: double.infinity,

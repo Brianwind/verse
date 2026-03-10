@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:context_menus/context_menus.dart';
 import 'netease_api/netease_music_api.dart';
 import 'player_model.dart';
+import 'constants/image_request.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -194,7 +195,7 @@ class _RecommendTrackListTileState extends State<_RecommendTrackListTile> {
   Widget build(BuildContext context) {
     final song = widget.song;
     final artists = song.ar?.map((a) => a.name).join(', ') ?? '';
-    final cover = song.al?.picUrl;
+    final cover = normalizeImageUrl(song.al?.picUrl);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -219,6 +220,7 @@ class _RecommendTrackListTileState extends State<_RecommendTrackListTile> {
                       borderRadius: BorderRadius.circular(6),
                       child: CachedNetworkImage(
                         imageUrl: cover,
+                        httpHeaders: imageHeadersFor(cover),
                         width: 48,
                         height: 48,
                         fit: BoxFit.cover,

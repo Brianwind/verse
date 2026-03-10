@@ -7,6 +7,9 @@ import 'netease_api/netease_music_api.dart';
 enum PlayMode { order, shuffle }
 
 class PlayerModel extends ChangeNotifier {
+  static const int _maxAutoNextRetry = 3;
+  static const int _maxSongUrlRetry = 2;
+
   final AudioPlayer _audioPlayer = AudioPlayer();
   Song2? _currentSong;
   String? _songUrl;
@@ -207,7 +210,7 @@ class PlayerModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> playNext() async {
+  Future<void> playNext({int retryCount = 0}) async {
     if (_playlistTracks.isEmpty) return;
 
     try {
@@ -228,16 +231,24 @@ class PlayerModel extends ChangeNotifier {
 
       // 如果获取不到URL，尝试播放下一首
       if (url.isEmpty) {
-        return await playNext();
+        if (retryCount < _maxAutoNextRetry) {
+          return await playNext(retryCount: retryCount + 1);
+        }
+        debugPrint('播放下一首失败: 连续获取URL为空，停止自动重试');
+        return;
       }
 
       await playSong(song, url);
       notifyListeners();
     } catch (e) {
       debugPrint('播放下一首歌曲时出错: $e');
-      await Future.delayed(const Duration(seconds: 1));
-      if (_playlistTracks.isNotEmpty) {
-        await playNext();
+      if (retryCount < _maxAutoNextRetry) {
+        await Future.delayed(const Duration(milliseconds: 800));
+        if (_playlistTracks.isNotEmpty) {
+          await playNext(retryCount: retryCount + 1);
+        }
+      } else {
+        debugPrint('播放下一首失败: 达到最大重试次数($_maxAutoNextRetry)');
       }
     }
   }
@@ -264,9 +275,21 @@ class PlayerModel extends ChangeNotifier {
 
     try {
       _fetchingUrls.add(songId);
-      final urlWrap = await NeteaseMusicApi().songUrl([songId]);
-      final url =
-          urlWrap.data?.isNotEmpty == true ? urlWrap.data![0].url ?? '' : '';
+      String url = '';
+
+      for (int attempt = 0; attempt <= _maxSongUrlRetry; attempt++) {
+        try {
+          final urlWrap = await NeteaseMusicApi().songUrl([songId]);
+          url =
+              urlWrap.data?.isNotEmpty == true
+                  ? urlWrap.data![0].url ?? ''
+                  : '';
+          if (url.isNotEmpty) break;
+        } catch (e) {
+          if (attempt >= _maxSongUrlRetry) rethrow;
+          await Future.delayed(Duration(milliseconds: 300 * (attempt + 1)));
+        }
+      }
 
       // 缓存URL
       if (url.isNotEmpty) {
