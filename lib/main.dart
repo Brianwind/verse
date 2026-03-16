@@ -7,6 +7,7 @@ import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:context_menus/context_menus.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'package:flutter_acrylic/flutter_acrylic.dart';
 
 import 'player_model.dart';
 import 'netease_api/src/netease_api.dart';
@@ -69,93 +70,9 @@ class CustomWindowButtons extends StatelessWidget {
   }
 }
 
-@override
-Widget build(BuildContext context) {
-  // 定义按钮颜色
-  final buttonColors = WindowButtonColors(
-    iconNormal: Theme.of(context).colorScheme.onSurface,
-    mouseOver: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-    mouseDown: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-    iconMouseOver: Theme.of(context).colorScheme.primary,
-    iconMouseDown: Theme.of(context).colorScheme.primary,
-  );
-
-  final closeButtonColors = WindowButtonColors(
-    iconNormal: Theme.of(context).colorScheme.onSurface,
-    mouseOver: Colors.red,
-    mouseDown: Colors.red.shade800,
-    iconMouseOver: Colors.white,
-    iconMouseDown: Colors.white,
-  );
-
-  return Material(
-    color: Colors.transparent,
-    child: Container(
-      height: 32,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // 左侧可拖动区域
-          Expanded(
-            child: WindowTitleBarBox(
-              child: MoveWindow(
-                child: Row(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(left: 12.0),
-                      child: Text(
-                        'Verse',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          // 右侧窗口控制按钮
-          WindowButton(
-            colors: buttonColors,
-            iconBuilder:
-                (context) =>
-                    Center(child: FaIcon(FontAwesomeIcons.minus, size: 12)),
-            onPressed: () => appWindow.minimize(),
-          ),
-          WindowButton(
-            colors: buttonColors,
-            iconBuilder:
-                (context) =>
-                    Center(child: FaIcon(FontAwesomeIcons.circle, size: 12)),
-            onPressed: () => appWindow.maximizeOrRestore(),
-          ),
-          WindowButton(
-            colors: closeButtonColors,
-            iconBuilder:
-                (context) =>
-                    Center(child: FaIcon(FontAwesomeIcons.xmark, size: 12)),
-            onPressed: () => appWindow.close(),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Window.initialize();
 
   // 初始化 Windows SMTC 服务，只在 Windows 平台生效
   await WindowsSmtcService.initialize();
@@ -188,6 +105,9 @@ class _MainAppState extends State<MainApp> {
   NeteaseAccountInfoWrap? _accountInfo;
   int _selectedIndex = 0;
   ThemeMode _themeMode = ThemeMode.system;
+  WindowEffect _windowEffect = WindowEffect.disabled;
+
+  bool get _isGlassActive => _windowEffect != WindowEffect.disabled;
 
   @override
   void initState() {
@@ -239,6 +159,40 @@ class _MainAppState extends State<MainApp> {
     setState(() {
       _themeMode = mode;
     });
+    _applyWindowEffect();
+  }
+
+  void _onWindowEffectChanged(WindowEffect effect) {
+    setState(() {
+      _windowEffect = effect;
+    });
+    _applyWindowEffect();
+  }
+
+  void _applyWindowEffect() {
+    final isDark =
+        _themeMode == ThemeMode.dark ||
+        (_themeMode == ThemeMode.system &&
+            WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+                Brightness.dark);
+
+    Window.setEffect(
+      effect: _windowEffect,
+      color:
+          _windowEffect == WindowEffect.transparent
+              ? Colors.transparent
+              : (isDark ? const Color(0xE0202020) : const Color(0xE0F3F3F3)),
+      dark: isDark,
+    );
+
+    // Mica/Acrylic/Tabbed 效果会导致原生窗口按钮出现，需隐藏
+    if (_windowEffect == WindowEffect.mica ||
+        _windowEffect == WindowEffect.acrylic ||
+        _windowEffect == WindowEffect.tabbed) {
+      Window.hideWindowControls();
+    } else {
+      Window.showWindowControls();
+    }
   }
 
   @override
@@ -252,6 +206,21 @@ class _MainAppState extends State<MainApp> {
             primarySwatch: Colors.blue,
           ).copyWith(secondary: Colors.blue),
           fontFamily: 'NotoSansSC',
+          scaffoldBackgroundColor: _isGlassActive ? Colors.transparent : null,
+          appBarTheme:
+              _isGlassActive
+                  ? const AppBarTheme(
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    scrolledUnderElevation: 0,
+                  )
+                  : null,
+          navigationRailTheme:
+              _isGlassActive
+                  ? const NavigationRailThemeData(
+                    backgroundColor: Colors.transparent,
+                  )
+                  : null,
         ),
         darkTheme: ThemeData(
           brightness: Brightness.dark,
@@ -261,6 +230,21 @@ class _MainAppState extends State<MainApp> {
             primarySwatch: Colors.blue,
           ).copyWith(secondary: Colors.blue),
           fontFamily: 'NotoSansSC',
+          scaffoldBackgroundColor: _isGlassActive ? Colors.transparent : null,
+          appBarTheme:
+              _isGlassActive
+                  ? const AppBarTheme(
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    scrolledUnderElevation: 0,
+                  )
+                  : null,
+          navigationRailTheme:
+              _isGlassActive
+                  ? const NavigationRailThemeData(
+                    backgroundColor: Colors.transparent,
+                  )
+                  : null,
         ),
         themeMode: _themeMode,
         debugShowCheckedModeBanner: false,
@@ -268,6 +252,7 @@ class _MainAppState extends State<MainApp> {
           children: [
             // 顶部窗口拖动区和窗口按钮
             Material(
+              color: _isGlassActive ? Colors.transparent : null,
               child: Container(
                 height: 32,
                 child: Row(
@@ -301,6 +286,7 @@ class _MainAppState extends State<MainApp> {
               child: Stack(
                 children: [
                   Scaffold(
+                    backgroundColor: _isGlassActive ? Colors.transparent : null,
                     body: Row(
                       children: [
                         NavigationRail(
@@ -346,6 +332,8 @@ class _MainAppState extends State<MainApp> {
                                 return SettingsPage(
                                   themeMode: _themeMode,
                                   onThemeModeChanged: _onThemeModeChanged,
+                                  windowEffect: _windowEffect,
+                                  onWindowEffectChanged: _onWindowEffectChanged,
                                 );
                               }
                             },
@@ -354,11 +342,11 @@ class _MainAppState extends State<MainApp> {
                       ],
                     ),
                   ),
-                  const Positioned(
+                  Positioned(
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    child: PlayerBar(),
+                    child: PlayerBar(isGlassActive: _isGlassActive),
                   ),
                 ],
               ),
@@ -371,7 +359,8 @@ class _MainAppState extends State<MainApp> {
 }
 
 class PlayerBar extends StatelessWidget {
-  const PlayerBar({super.key});
+  final bool isGlassActive;
+  const PlayerBar({super.key, this.isGlassActive = false});
 
   @override
   Widget build(BuildContext context) {
@@ -385,8 +374,11 @@ class PlayerBar extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Material(
-        elevation: 8,
-        color: Theme.of(context).colorScheme.surface,
+        elevation: isGlassActive ? 0 : 8,
+        color:
+            isGlassActive
+                ? Theme.of(context).colorScheme.surface.withOpacity(0.7)
+                : Theme.of(context).colorScheme.surface,
         child: Container(
           height: 96,
           padding: const EdgeInsets.symmetric(horizontal: 16),

@@ -271,6 +271,11 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
           children: [
             // 顶部窗口拖动区和窗口按钮，统一样式
             Material(
+              color:
+                  Theme.of(context).scaffoldBackgroundColor ==
+                          Colors.transparent
+                      ? Colors.transparent
+                      : null,
               child: Container(
                 height: 32,
                 child: Row(
@@ -336,7 +341,10 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
                   );
                 },
               ),
-      bottomNavigationBar: const PlayerBar(),
+      bottomNavigationBar: PlayerBar(
+        isGlassActive:
+            Theme.of(context).scaffoldBackgroundColor == Colors.transparent,
+      ),
     );
   }
 }
