@@ -29,8 +29,8 @@ class CustomWindowButtons extends StatelessWidget {
   Widget build(BuildContext context) {
     final buttonColors = WindowButtonColors(
       iconNormal: Theme.of(context).colorScheme.onSurface,
-      mouseOver: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-      mouseDown: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+      mouseOver: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+      mouseDown: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
       iconMouseOver: Theme.of(context).colorScheme.primary,
       iconMouseDown: Theme.of(context).colorScheme.primary,
     );
@@ -273,7 +273,7 @@ class _MainAppState extends State<MainApp> {
             // 顶部窗口拖动区和窗口按钮
             Material(
               color: _isGlassActive ? Colors.transparent : null,
-              child: Container(
+              child: SizedBox(
                 height: 32,
                 child: Row(
                   children: [
@@ -393,17 +393,34 @@ class PlayerBar extends StatelessWidget {
     final cover = normalizeImageUrl(song.al?.picUrl);
     final duration = player.duration;
     final position = player.position;
+    final colors = Theme.of(context).colorScheme;
     return SafeArea(
       top: false,
       child: Material(
-        elevation: isGlassActive ? 0 : 8,
-        color:
-            isGlassActive
-                ? Theme.of(context).colorScheme.surface.withOpacity(0.7)
-                : Theme.of(context).colorScheme.surface,
+        elevation: 0,
+        color: Colors.transparent,
         child: Container(
-          height: 96,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          height: 92,
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          decoration: BoxDecoration(
+            color:
+                isGlassActive
+                    ? colors.surface.withValues(alpha: 0.78)
+                    : colors.surface,
+            border: Border(
+              top: BorderSide(color: colors.outline.withValues(alpha: 0.14)),
+            ),
+            boxShadow:
+                isGlassActive
+                    ? null
+                    : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.10),
+                        blurRadius: 18,
+                        offset: const Offset(0, -4),
+                      ),
+                    ],
+          ),
           child: Row(
             children: [
               if (cover != null)
@@ -476,12 +493,12 @@ class PlayerBar extends StatelessWidget {
                                 onSeek: player.seek,
                                 timeLabelType: TimeLabelType.remainingTime,
                                 barHeight: 4,
-                                baseBarColor: Colors.grey.shade400,
-                                progressBarColor:
-                                    Theme.of(context).colorScheme.primary,
-                                thumbColor:
-                                    Theme.of(context).colorScheme.primary,
-                                thumbRadius: 7,
+                                baseBarColor: colors.onSurface.withValues(
+                                  alpha: 0.18,
+                                ),
+                                progressBarColor: colors.primary,
+                                thumbColor: colors.primary,
+                                thumbRadius: 6,
                               )
                               : const SizedBox(height: 16),
                     ),
@@ -618,7 +635,7 @@ class _PlayerBarCoverState extends State<PlayerBarCover> {
                   child: Container(
                     width: 56,
                     height: 56,
-                    color: Colors.black.withOpacity(0.08),
+                    color: Colors.black.withValues(alpha: 0.08),
                   ),
                 ),
               ),
@@ -659,7 +676,7 @@ void _showAddToPlaylistDialog(
         ),
   );
 
-  void _closeLoadingDialog() {
+  void closeLoadingDialog() {
     // 检查对话框是否仍然显示，然后关闭它
     if (loadingDialogKey.currentContext != null &&
         Navigator.of(loadingDialogKey.currentContext!).canPop()) {
@@ -674,7 +691,7 @@ void _showAddToPlaylistDialog(
     // 获取当前登录用户信息
     final accountInfo = NeteaseMusicApi().usc.accountInfo;
     if (accountInfo?.profile?.userId == null) {
-      _closeLoadingDialog(); // 关闭加载指示器
+      closeLoadingDialog(); // 关闭加载指示器
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -694,7 +711,7 @@ void _showAddToPlaylistDialog(
     final playlistResult = await NeteaseMusicApi().userPlayList(userId);
 
     // 关闭加载指示器
-    _closeLoadingDialog();
+    closeLoadingDialog();
 
     if (!context.mounted) return; // 安全检查
 
@@ -783,7 +800,7 @@ void _showAddToPlaylistDialog(
                             ),
                       );
 
-                      void _closeAddingDialog() {
+                      void closeAddingDialog() {
                         if (addingDialogKey.currentContext != null &&
                             Navigator.of(
                               addingDialogKey.currentContext!,
@@ -802,7 +819,7 @@ void _showAddToPlaylistDialog(
                         );
 
                         // 确保关闭加载指示器
-                        _closeAddingDialog();
+                        closeAddingDialog();
 
                         if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -810,7 +827,7 @@ void _showAddToPlaylistDialog(
                         );
                       } catch (e) {
                         // 确保关闭加载指示器
-                        _closeAddingDialog();
+                        closeAddingDialog();
 
                         if (!context.mounted) return;
                         ScaffoldMessenger.of(
@@ -831,7 +848,7 @@ void _showAddToPlaylistDialog(
           ),
     );
   } catch (e) {
-    _closeLoadingDialog(); // 关闭加载指示器
+    closeLoadingDialog(); // 关闭加载指示器
 
     if (!context.mounted) return;
     ScaffoldMessenger.of(

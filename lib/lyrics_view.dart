@@ -5,6 +5,7 @@ import 'dart:async';
 import 'netease_api/netease_music_api.dart';
 import 'player_model.dart';
 import 'fluid_background.dart'; // 导入以使用ImageThemeColors类型
+import 'utils/lyric_visibility.dart';
 
 class LyricsView extends StatefulWidget {
   final String? songId;
@@ -28,14 +29,14 @@ class _LyricsViewState extends State<LyricsView> {
   double _containerHeight = 0;
   double _containerWidth = 0;
   bool _shouldTransit = true;
-  double _currentLyricAlignmentPercentage = 50; // 居中位置百分比
+  final double _currentLyricAlignmentPercentage = 50; // 居中位置百分比
   List<Map<String, dynamic>> _lineTransforms = [];
-  bool _lyricFade = true; // 渐变效果
-  bool _lyricZoom = true; // 缩放效果
-  bool _lyricBlur = true; // 模糊效果
+  final bool _lyricFade = true; // 渐变效果
+  final bool _lyricZoom = true; // 缩放效果
+  final bool _lyricBlur = true; // 模糊效果
 
   // 滚动相关的属性
-  bool _scrollingMode = false;
+  final bool _scrollingMode = false;
   int _scrollingFocusLine = 0;
 
   @override
@@ -59,7 +60,8 @@ class _LyricsViewState extends State<LyricsView> {
   }
 
   Future<void> _fetchLyrics() async {
-    if (widget.songId == null) return;
+    final songId = widget.songId;
+    if (songId == null) return;
 
     setState(() {
       _loading = true;
@@ -68,10 +70,11 @@ class _LyricsViewState extends State<LyricsView> {
     });
 
     try {
-      final result = await NeteaseMusicApi().songLyric(widget.songId!);
-      if (result.lrc?.lyric != null) {
+      final result = await NeteaseMusicApi().songLyric(songId);
+      final lyricText = result.lrc.lyric;
+      if (lyricText != null) {
         setState(() {
-          _lyrics = result.lrc!.lyric;
+          _lyrics = lyricText;
           _parsedLyrics = _parseLyrics(_lyrics!);
         });
       } else {
@@ -163,8 +166,6 @@ class _LyricsViewState extends State<LyricsView> {
 
     // 估算每行高度，实际实现应该测量真实渲染高度
     for (final time in sortedTimes) {
-      final lyric = _parsedLyrics[time]!;
-
       // 估算文本高度，这里简化处理
       final isCurrentLyric = sortedTimes.indexOf(time) == _currentLyricIndex;
       final fontSize = isCurrentLyric ? 30.0 : 28.0;
@@ -204,8 +205,8 @@ class _LyricsViewState extends State<LyricsView> {
     double opacityByOffset(int offset) {
       if (!_lyricFade) return 1.0;
       offset = offset.abs();
-      if (offset <= 1) return 1.0;
-      return (1.0 - 0.25 * (offset - 1)).clamp(0.0, 1.0);
+      if (offset == 0) return 1.0;
+      return (0.92 - 0.22 * offset).clamp(0.26, 1.0);
     }
 
     // 函数：根据与当前行的偏移计算模糊程度
@@ -214,7 +215,7 @@ class _LyricsViewState extends State<LyricsView> {
       offset = offset.abs();
       if (offset == 0) return 0.0;
       // 计算模糊值，随着与当前行距离增加而增加
-      return (offset * 1.5).clamp(0.0, 6.0);
+      return (offset * 0.35).clamp(0.0, 1.2);
     }
 
     // 计算当前行位置
@@ -337,7 +338,12 @@ class _LyricsViewState extends State<LyricsView> {
             clipBehavior: Clip.none,
             children: [
               for (int i = 0; i < sortedTimes.length; i++)
-                _buildLyricLine(sortedTimes[i], i),
+                if (isLyricLineVisible(
+                  index: i,
+                  currentIndex: _currentLyricIndex,
+                  lineCount: sortedTimes.length,
+                ))
+                  _buildLyricLine(sortedTimes[i], i),
             ],
           ),
         );
@@ -362,7 +368,7 @@ class _LyricsViewState extends State<LyricsView> {
     final Color currentLyricColor =
         widget.themeColors?.textColor ?? Theme.of(context).colorScheme.primary;
     final Color normalLyricColor =
-        widget.themeColors?.textColor.withOpacity(0.8) ??
+        widget.themeColors?.textColor.withValues(alpha: 0.76) ??
         Theme.of(context).textTheme.bodyMedium?.color ??
         Colors.white70;
 
@@ -396,9 +402,9 @@ class _LyricsViewState extends State<LyricsView> {
                 child: Text(
                   lyric,
                   style: TextStyle(
-                    fontSize: isCurrentLyric ? 30 : 28,
+                    fontSize: isCurrentLyric ? 30 : 26,
                     fontWeight:
-                        isCurrentLyric ? FontWeight.bold : FontWeight.normal,
+                        isCurrentLyric ? FontWeight.w700 : FontWeight.w500,
                     color:
                         isCurrentLyric ? currentLyricColor : normalLyricColor,
                   ),

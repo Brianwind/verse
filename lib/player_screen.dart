@@ -125,8 +125,9 @@ class _PlayerScreenState extends State<PlayerScreen>
   Widget build(BuildContext context) {
     final player = context.watch<PlayerModel>();
     final song = player.currentSong;
-    if (song == null)
+    if (song == null) {
       return const Scaffold(body: Center(child: Text('暂无播放歌曲')));
+    }
     final artists = song.ar?.map((a) => a.name).join(', ') ?? '';
     final cover = normalizeImageUrl(song.al?.picUrl);
     final duration = player.duration;
@@ -134,7 +135,7 @@ class _PlayerScreenState extends State<PlayerScreen>
 
     // 根据主题颜色创建文本样式
     final TextStyle titleStyle = TextStyle(
-      fontSize: 36,
+      fontSize: 34,
       fontWeight: FontWeight.bold,
       color:
           _themeColors?.textColor ??
@@ -142,8 +143,8 @@ class _PlayerScreenState extends State<PlayerScreen>
     );
 
     final TextStyle artistStyle = TextStyle(
-      fontSize: 24,
-      color: _themeColors?.textColor.withOpacity(0.8) ?? Colors.grey,
+      fontSize: 22,
+      color: _themeColors?.textColor.withValues(alpha: 0.82) ?? Colors.grey,
     );
 
     return Scaffold(
@@ -216,6 +217,15 @@ class _PlayerScreenState extends State<PlayerScreen>
                 onThemeColorsExtracted: _onThemeColorsExtracted, // 添加颜色更新回调
               ),
             ),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.08),
+                  ),
+                ),
+              ),
+            ),
 
             // 主要内容区域（占据整个空间）
             _buildMainContent(
@@ -251,16 +261,16 @@ class _PlayerScreenState extends State<PlayerScreen>
     TextStyle artistStyle, // 添加艺术家样式参数
   ) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0),
+      padding: const EdgeInsets.fromLTRB(48.0, 20.0, 48.0, 104.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // 左侧：专辑封面和歌曲信息
           Expanded(
-            flex: 6,
+            flex: 5,
             child: Padding(
-              padding: const EdgeInsets.only(right: 40.0),
+              padding: const EdgeInsets.only(right: 24.0),
               child: Center(
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
@@ -345,11 +355,14 @@ class _PlayerScreenState extends State<PlayerScreen>
 
           // 右侧：歌词
           Expanded(
-            flex: 4,
+            flex: 5,
             child: Center(
-              child: LyricsView(
-                songId: song.id,
-                themeColors: _themeColors, // 传递主题颜色给歌词组件
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 620),
+                child: LyricsView(
+                  songId: song.id,
+                  themeColors: _themeColors, // 传递主题颜色给歌词组件
+                ),
               ),
             ),
           ),
@@ -386,15 +399,17 @@ class _PlayerScreenState extends State<PlayerScreen>
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 600),
           curve: Curves.easeInOut,
-          height: _showControls ? 100 : 0,
+          height: _showControls ? 108 : 0,
           clipBehavior: Clip.hardEdge,
-          padding: _showControls ? const EdgeInsets.all(12.0) : EdgeInsets.zero,
+          padding:
+              _showControls
+                  ? const EdgeInsets.fromLTRB(36, 12, 36, 12)
+                  : EdgeInsets.zero,
           margin: EdgeInsets.zero,
           decoration: BoxDecoration(
-            color: Colors.transparent,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(16),
-              topRight: Radius.circular(16),
+            color: Colors.black.withValues(alpha: 0.04),
+            border: Border(
+              top: BorderSide(color: textColor.withValues(alpha: 0.10)),
             ),
           ),
           child: Column(
@@ -407,7 +422,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                 duration: const Duration(milliseconds: 400),
                 curve: Curves.easeInOut,
                 child: Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.only(bottom: 10),
                   child:
                       duration.inMilliseconds > 0
                           ? ProgressBar(
@@ -451,21 +466,27 @@ class _PlayerScreenState extends State<PlayerScreen>
                               _formatDuration(position),
                               style: TextStyle(
                                 fontSize: 14,
-                                color: textColor.withOpacity(0.8), // 使用提取的主题颜色
+                                color: textColor.withValues(
+                                  alpha: 0.82,
+                                ), // 使用提取的主题颜色
                               ),
                             ),
                             Text(
                               ' / ',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: textColor.withOpacity(0.8), // 使用提取的主题颜色
+                                color: textColor.withValues(
+                                  alpha: 0.82,
+                                ), // 使用提取的主题颜色
                               ),
                             ),
                             Text(
                               _formatDuration(duration),
                               style: TextStyle(
                                 fontSize: 14,
-                                color: textColor.withOpacity(0.8), // 使用提取的主题颜色
+                                color: textColor.withValues(
+                                  alpha: 0.82,
+                                ), // 使用提取的主题颜色
                               ),
                             ),
                             // 添加喜欢按钮到左侧区域
@@ -604,7 +625,7 @@ class _PlayerScreenState extends State<PlayerScreen>
           ),
     );
 
-    void _closeLoadingDialog() {
+    void closeLoadingDialog() {
       // 检查对话框是否仍然显示，然后关闭它
       if (loadingDialogKey.currentContext != null &&
           Navigator.of(loadingDialogKey.currentContext!).canPop()) {
@@ -619,7 +640,7 @@ class _PlayerScreenState extends State<PlayerScreen>
       // 获取当前登录用户信息
       final accountInfo = NeteaseMusicApi().usc.accountInfo;
       if (accountInfo?.profile?.userId == null) {
-        _closeLoadingDialog(); // 关闭加载指示器
+        closeLoadingDialog(); // 关闭加载指示器
         if (context.mounted) {
           ScaffoldMessenger.of(
             context,
@@ -636,7 +657,7 @@ class _PlayerScreenState extends State<PlayerScreen>
       final playlistResult = await NeteaseMusicApi().userPlayList(userId);
 
       // 关闭加载指示器
-      _closeLoadingDialog();
+      closeLoadingDialog();
 
       if (!context.mounted) return; // 安全检查
 
@@ -729,7 +750,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                               ),
                         );
 
-                        void _closeAddingDialog() {
+                        void closeAddingDialog() {
                           if (addingDialogKey.currentContext != null &&
                               Navigator.of(
                                 addingDialogKey.currentContext!,
@@ -748,7 +769,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                           );
 
                           // 确保关闭加载指示器
-                          _closeAddingDialog();
+                          closeAddingDialog();
 
                           if (!context.mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -759,7 +780,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                           );
                         } catch (e) {
                           // 确保关闭加载指示器
-                          _closeAddingDialog();
+                          closeAddingDialog();
 
                           if (!context.mounted) return;
                           ScaffoldMessenger.of(
@@ -780,7 +801,7 @@ class _PlayerScreenState extends State<PlayerScreen>
             ),
       );
     } catch (e) {
-      _closeLoadingDialog(); // 关闭加载指示器
+      closeLoadingDialog(); // 关闭加载指示器
 
       if (!context.mounted) return;
       ScaffoldMessenger.of(
@@ -799,8 +820,8 @@ class _PlayerWindowButtons extends StatelessWidget {
     final buttonColor = color ?? Theme.of(context).colorScheme.onSurface;
     final buttonColors = WindowButtonColors(
       iconNormal: buttonColor,
-      mouseOver: buttonColor.withOpacity(0.1),
-      mouseDown: buttonColor.withOpacity(0.2),
+      mouseOver: buttonColor.withValues(alpha: 0.1),
+      mouseDown: buttonColor.withValues(alpha: 0.2),
       iconMouseOver: buttonColor,
       iconMouseDown: buttonColor,
     );

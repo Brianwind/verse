@@ -5,7 +5,6 @@ import 'package:context_menus/context_menus.dart';
 import 'netease_api/netease_music_api.dart';
 import 'player_model.dart';
 import 'constants/image_request.dart';
-import 'utils/daily_sample.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -79,34 +78,14 @@ class _HomePageState extends State<HomePage> {
     final bottomPadding = player.currentSong != null ? 100.0 : 0.0;
 
     return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final showSummary = constraints.maxWidth >= 1040;
-          return Row(
-            children: [
-              Expanded(
-                child: _RecommendationListView(
-                  isLoading: _isLoading,
-                  errorMessage: _errorMessage,
-                  songs: _recommendSongs,
-                  bottomPadding: bottomPadding,
-                  currentSongId: player.currentSong?.id,
-                  onRefresh: _fetchRecommendSongs,
-                  onPlaySong: _playSong,
-                ),
-              ),
-              if (showSummary)
-                _DailySummaryPanel(
-                  songs: _recommendSongs,
-                  isLoading: _isLoading,
-                  onPlayAll:
-                      _recommendSongs.isEmpty
-                          ? null
-                          : () => _playSong(_recommendSongs.first, 0),
-                ),
-            ],
-          );
-        },
+      body: _RecommendationListView(
+        isLoading: _isLoading,
+        errorMessage: _errorMessage,
+        songs: _recommendSongs,
+        bottomPadding: bottomPadding,
+        currentSongId: player.currentSong?.id,
+        onRefresh: _fetchRecommendSongs,
+        onPlaySong: _playSong,
       ),
     );
   }
@@ -253,136 +232,6 @@ class _DailyHeader extends StatelessWidget {
   }
 }
 
-class _DailySummaryPanel extends StatelessWidget {
-  final List<Song2> songs;
-  final bool isLoading;
-  final VoidCallback? onPlayAll;
-
-  const _DailySummaryPanel({
-    required this.songs,
-    required this.isLoading,
-    required this.onPlayAll,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final previewSongs = stableDailySample(
-      songs,
-      count: 4,
-      date: DateTime.now(),
-      keyOf: (song) => song.id,
-    );
-
-    return Container(
-      width: 320,
-      decoration: BoxDecoration(
-        color: colors.surface.withValues(alpha: 0.32),
-        border: Border(
-          left: BorderSide(color: colors.outline.withValues(alpha: 0.18)),
-        ),
-      ),
-      padding: const EdgeInsets.fromLTRB(22, 28, 22, 22),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '今日精选',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            DateTime.now().toString().substring(0, 10),
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: colors.onSurface.withValues(alpha: 0.58),
-            ),
-          ),
-          const SizedBox(height: 22),
-          AspectRatio(
-            aspectRatio: 1,
-            child:
-                isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _CoverCollage(songs: previewSongs),
-          ),
-          const SizedBox(height: 22),
-          FilledButton.icon(
-            onPressed: onPlayAll,
-            icon: const Icon(Icons.play_arrow),
-            label: const Text('播放全部'),
-          ),
-          const SizedBox(height: 18),
-          if (songs.isNotEmpty)
-            Text(
-              '${songs.length} 首歌曲',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: colors.onSurface.withValues(alpha: 0.62),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CoverCollage extends StatelessWidget {
-  final List<Song2> songs;
-
-  const _CoverCollage({required this.songs});
-
-  @override
-  Widget build(BuildContext context) {
-    if (songs.isEmpty) {
-      return DecoratedBox(
-        decoration: BoxDecoration(
-          color: Theme.of(
-            context,
-          ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Center(child: Icon(Icons.music_note, size: 52)),
-      );
-    }
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: GridView.builder(
-        physics: const NeverScrollableScrollPhysics(),
-        padding: EdgeInsets.zero,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 2,
-          mainAxisSpacing: 2,
-        ),
-        itemCount: songs.length,
-        itemBuilder: (context, index) {
-          return _CoverThumb(url: normalizeImageUrl(songs[index].al?.picUrl));
-        },
-      ),
-    );
-  }
-}
-
-class _CoverThumb extends StatelessWidget {
-  final String? url;
-
-  const _CoverThumb({required this.url});
-
-  @override
-  Widget build(BuildContext context) {
-    if (url == null) return const ColoredBox(color: Colors.black12);
-    return CachedNetworkImage(
-      imageUrl: url!,
-      httpHeaders: imageHeadersFor(url),
-      fit: BoxFit.cover,
-      placeholder: (_, __) => const ColoredBox(color: Colors.black12),
-      errorWidget: (_, __, ___) => const Icon(Icons.music_note),
-    );
-  }
-}
-
 class _RecommendTrackListTile extends StatefulWidget {
   final Song2 song;
   final int index;
@@ -409,14 +258,17 @@ class _RecommendTrackListTileState extends State<_RecommendTrackListTile> {
   Widget build(BuildContext context) {
     final song = widget.song;
     final artists = song.ar?.map((a) => a.name).join(', ') ?? '';
+    final album = song.al?.name ?? '';
     final cover = normalizeImageUrl(song.al?.picUrl);
     final colors = Theme.of(context).colorScheme;
     final duration = _formatDuration(song.dt);
+    final showAlbum =
+        MediaQuery.sizeOf(context).width >= 900 && album.isNotEmpty;
     final rowColor =
         widget.isCurrent
-            ? colors.primary.withValues(alpha: 0.13)
+            ? colors.primary.withValues(alpha: 0.07)
             : _isHovered
-            ? colors.onSurface.withValues(alpha: 0.07)
+            ? colors.onSurface.withValues(alpha: 0.05)
             : Colors.transparent;
 
     return MouseRegion(
@@ -460,10 +312,31 @@ class _RecommendTrackListTileState extends State<_RecommendTrackListTile> {
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: Row(
                     children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 120),
+                        width: 3,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color:
+                              widget.isCurrent
+                                  ? colors.primary
+                                  : Colors.transparent,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
                       SizedBox(
-                        width: 34,
+                        width: 30,
                         child:
-                            widget.isCurrent
+                            _isLoading
+                                ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                                : widget.isCurrent
                                 ? Icon(
                                   Icons.graphic_eq,
                                   color: colors.primary,
@@ -505,6 +378,7 @@ class _RecommendTrackListTileState extends State<_RecommendTrackListTile> {
                           ),
                       const SizedBox(width: 14),
                       Expanded(
+                        flex: 5,
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -536,6 +410,22 @@ class _RecommendTrackListTileState extends State<_RecommendTrackListTile> {
                           ],
                         ),
                       ),
+                      if (showAlbum) ...[
+                        const SizedBox(width: 24),
+                        Expanded(
+                          flex: 3,
+                          child: Text(
+                            album,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium?.copyWith(
+                              color: colors.onSurface.withValues(alpha: 0.48),
+                            ),
+                          ),
+                        ),
+                      ],
                       if (duration != null) ...[
                         const SizedBox(width: 12),
                         Text(
@@ -547,28 +437,6 @@ class _RecommendTrackListTileState extends State<_RecommendTrackListTile> {
                           ),
                         ),
                       ],
-                      const SizedBox(width: 12),
-                      SizedBox(
-                        width: 28,
-                        height: 28,
-                        child:
-                            _isLoading
-                                ? const Padding(
-                                  padding: EdgeInsets.all(5),
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                                : Icon(
-                                  Icons.play_arrow,
-                                  color:
-                                      _isHovered || widget.isCurrent
-                                          ? colors.primary
-                                          : colors.onSurface.withValues(
-                                            alpha: 0.42,
-                                          ),
-                                ),
-                      ),
                     ],
                   ),
                 ),
