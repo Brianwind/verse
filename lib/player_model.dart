@@ -4,6 +4,7 @@ import 'dart:async'; // 添加 StreamSubscription 所需导入
 import 'fluid_background.dart'; // 导入FluidBackground
 import 'netease_api/netease_music_api.dart';
 import 'utils/lru_cache.dart';
+import 'utils/play_queue.dart';
 import 'utils/playback_start_policy.dart';
 
 enum PlayMode { order, shuffle }
@@ -41,32 +42,26 @@ class PlayerModel extends ChangeNotifier {
   // 使用单独的缓存锁避免同一首歌多次请求URL
   final Set<String> _fetchingUrls = {};
 
-  int? _playlistTrackIndexForQueueOffset(int offset) {
-    if (_playlistTracks.isEmpty || _currentIndex < 0) return null;
-    if (offset < 1) return null;
-
-    if (_playMode == PlayMode.order) {
-      return (_currentIndex + offset) % _playlistTracks.length;
-    }
-
-    if (_shuffleOrder.isEmpty) return null;
-    final queueIndex = (_currentIndex + offset) % _shuffleOrder.length;
-    final trackIndex = _shuffleOrder[queueIndex];
-    if (trackIndex < 0 || trackIndex >= _playlistTracks.length) return null;
-    return trackIndex;
-  }
-
   // 添加URL预缓存功能，提前加载后续歌曲的URL
   Future<void> _preloadUpcomingSongUrls({int count = 2}) async {
     if (_playlistTracks.isEmpty || _currentIndex < 0) return;
 
-    for (var offset = 1; offset <= count; offset++) {
-      final trackIndex = _playlistTrackIndexForQueueOffset(offset);
-      if (trackIndex == null) continue;
+    final trackIndices = upcomingTrackIndices(
+      currentIndex: _currentIndex,
+      trackCount: _playlistTracks.length,
+      count: count,
+      shuffleOrder: _playMode == PlayMode.shuffle ? _shuffleOrder : null,
+    );
 
-      final songId = _playlistTracks[trackIndex].id;
+    for (final trackIndex in trackIndices) {
+      final song = _playlistTracks[trackIndex];
+      final songId = song.id;
       if (_songUrlCache.containsKey(songId) || _fetchingUrls.contains(songId)) {
         continue;
+      }
+
+      if (song.al?.picUrl != null) {
+        unawaited(FluidBackground.preloadBackground(song.al?.picUrl));
       }
 
       // 非阻塞式预加载
@@ -80,8 +75,14 @@ class PlayerModel extends ChangeNotifier {
   }
 
   String? get nextSongId {
-    final trackIndex = _playlistTrackIndexForQueueOffset(1);
-    if (trackIndex == null) return null;
+    final trackIndices = upcomingTrackIndices(
+      currentIndex: _currentIndex,
+      trackCount: _playlistTracks.length,
+      count: 1,
+      shuffleOrder: _playMode == PlayMode.shuffle ? _shuffleOrder : null,
+    );
+    if (trackIndices.isEmpty) return null;
+    final trackIndex = trackIndices.first;
     return _playlistTracks[trackIndex].id;
   }
 
