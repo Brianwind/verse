@@ -17,7 +17,7 @@ Yet another client for netease cloud music.
 
 ![image](https://github.com/user-attachments/assets/814ae74a-ea9f-47fe-bba4-ecb7641b8df9)
 ![image](https://github.com/user-attachments/assets/cd11a3d6-84b6-48d1-b876-1e99da8f443b)
-![image](https://github.com/user-attachments/assets/12892ba7-e62f-4b09-a868-c648a9144625)
+![image](docs/images/screenshot-player-0.2.3.png)
 
 ## 碎碎念
 
