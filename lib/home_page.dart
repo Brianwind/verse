@@ -5,6 +5,7 @@ import 'package:context_menus/context_menus.dart';
 import 'netease_api/netease_music_api.dart';
 import 'player_model.dart';
 import 'constants/image_request.dart';
+import 'utils/daily_sample.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -266,7 +267,12 @@ class _DailySummaryPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final previewSongs = songs.take(4).toList();
+    final previewSongs = stableDailySample(
+      songs,
+      count: 4,
+      date: DateTime.now(),
+      keyOf: (song) => song.id,
+    );
 
     return Container(
       width: 320,
