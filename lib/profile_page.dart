@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:context_menus/context_menus.dart';
 
+import 'auth_model.dart';
 import 'player_model.dart';
 import 'netease_api/src/netease_api.dart';
 import 'netease_api/src/api/play/bean.dart';
@@ -31,6 +32,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _fetchPlaylists() async {
     final profile = NeteaseMusicApi().usc.accountInfo?.profile;
     if (profile == null) {
+      if (!mounted) return;
       setState(() {
         _loading = false;
         _error = '未登录';
@@ -41,11 +43,13 @@ class _ProfilePageState extends State<ProfilePage> {
       final res = await NeteaseMusicApi().userPlayList(
         profile.userId.toString(),
       );
+      if (!mounted) return;
       setState(() {
         _playlists = res.playlist;
         _loading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = '加载歌单失败: $e';
         _playlists = null;
@@ -66,12 +70,29 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  Future<void> _logout() async {
+    final auth = context.read<AuthModel>();
+    final player = context.read<PlayerModel>();
+
+    await player.clearSessionState();
+    await auth.logout();
+
+    if (!mounted) return;
+    final error = auth.errorMessage;
+    if (error != null && error.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), duration: const Duration(seconds: 2)),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final player = context.watch<PlayerModel>();
+    final auth = context.watch<AuthModel>();
     final bottomPadding = player.currentSong != null ? 100.0 : 0.0;
 
-    final profile = NeteaseMusicApi().usc.accountInfo?.profile;
+    final profile = auth.accountInfo?.profile;
     Play? likedPlaylist;
     List<Play> otherPlaylists = [];
     if (_playlists != null && profile != null) {
@@ -84,7 +105,24 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('我的')),
+      appBar: AppBar(
+        title: const Text('我的'),
+        actions: [
+          if (auth.isLoggedIn)
+            IconButton(
+              tooltip: '退出登录',
+              onPressed: auth.isBusy ? null : _logout,
+              icon:
+                  auth.isBusy
+                      ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                      : const Icon(Icons.logout),
+            ),
+        ],
+      ),
       body:
           _loading
               ? const Center(child: CircularProgressIndicator())
@@ -157,61 +195,37 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                     ),
-                    ...otherPlaylists.map(
-                      (pl) => StatefulBuilder(
-                        builder: (context, setState) {
-                          bool isHovered = false;
-                          return MouseRegion(
-                            onEnter: (_) => setState(() => isHovered = true),
-                            onExit: (_) => setState(() => isHovered = false),
-                            child: InkWell(
-                              onTap: () => _openPlaylistDetail(context, pl),
-                              child: Container(
-                                color:
-                                    isHovered
-                                        ? Theme.of(context).hoverColor
-                                        : null,
-                                child: ListTile(
-                                  leading:
-                                      normalizeImageUrl(pl.coverImgUrl) != null
-                                          ? ClipRRect(
-                                            borderRadius: BorderRadius.circular(
-                                              6,
-                                            ),
-                                            child: CachedNetworkImage(
-                                              imageUrl:
-                                                  normalizeImageUrl(
-                                                    pl.coverImgUrl,
-                                                  )!,
-                                              httpHeaders: imageHeadersFor(
-                                                pl.coverImgUrl,
-                                              ),
-                                              width: 48,
-                                              height: 48,
-                                              fit: BoxFit.cover,
-                                              placeholder:
-                                                  (context, url) =>
-                                                      const SizedBox(
-                                                        width: 48,
-                                                        height: 48,
-                                                      ),
-                                              errorWidget:
-                                                  (context, url, error) =>
-                                                      const Icon(
-                                                        Icons.broken_image,
-                                                      ),
-                                            ),
-                                          )
-                                          : const Icon(Icons.queue_music),
-                                  title: Text(pl.name ?? '无名歌单'),
-                                  subtitle: Text('共${pl.trackCount ?? 0}首'),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
+                    ...otherPlaylists.map((pl) {
+                      final coverUrl = normalizeImageUrl(pl.coverImgUrl);
+                      return InkWell(
+                        onTap: () => _openPlaylistDetail(context, pl),
+                        child: ListTile(
+                          leading:
+                              coverUrl != null
+                                  ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: CachedNetworkImage(
+                                      imageUrl: coverUrl,
+                                      httpHeaders: imageHeadersFor(coverUrl),
+                                      width: 48,
+                                      height: 48,
+                                      fit: BoxFit.cover,
+                                      placeholder:
+                                          (context, url) => const SizedBox(
+                                            width: 48,
+                                            height: 48,
+                                          ),
+                                      errorWidget:
+                                          (context, url, error) =>
+                                              const Icon(Icons.broken_image),
+                                    ),
+                                  )
+                                  : const Icon(Icons.queue_music),
+                          title: Text(pl.name ?? '无名歌单'),
+                          subtitle: Text('共${pl.trackCount ?? 0}首'),
+                        ),
+                      );
+                    }),
                   ],
                 ],
               ),
@@ -250,11 +264,13 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
     });
     try {
       final res = await NeteaseMusicApi().playListDetail(widget.playlistId);
+      if (!mounted) return;
       setState(() {
         _playlist = res.playlist;
         _loading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = '加载歌单详情失败: $e';
         _loading = false;

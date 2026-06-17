@@ -9,9 +9,9 @@ import 'package:context_menus/context_menus.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
 
+import 'auth_model.dart';
 import 'player_model.dart';
 import 'netease_api/src/netease_api.dart';
-import 'netease_api/src/api/login/bean.dart';
 import 'login_page.dart';
 import 'settings_page.dart';
 import 'profile_page.dart';
@@ -19,7 +19,6 @@ import 'player_screen.dart';
 import 'home_page.dart';
 import 'search_page.dart';
 import 'windows_smtc_service.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'constants/image_request.dart';
 
 // 可复用窗口控制按钮组件
@@ -79,8 +78,11 @@ void main() async {
 
   await NeteaseMusicApi.init();
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => PlayerModel(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthModel()),
+        ChangeNotifierProvider(create: (_) => PlayerModel()),
+      ],
       child: const MainApp(),
     ),
   );
@@ -101,11 +103,11 @@ class MainApp extends StatefulWidget {
 }
 
 class _MainAppState extends State<MainApp> {
-  bool _logined = false;
-  NeteaseAccountInfoWrap? _accountInfo;
-  int _selectedIndex = 0;
+  int _selectedIndex = NeteaseMusicApi().usc.isLogined ? 0 : 3;
   ThemeMode _themeMode = ThemeMode.system;
-  WindowEffect _windowEffect = WindowEffect.disabled;
+  WindowEffect _windowEffect = WindowEffect.acrylic;
+  AuthModel? _authModel;
+  bool _routeToHomeOnNextLogin = !NeteaseMusicApi().usc.isLogined;
 
   bool get _isGlassActive => _windowEffect != WindowEffect.disabled;
 
@@ -113,40 +115,56 @@ class _MainAppState extends State<MainApp> {
   void initState() {
     super.initState();
 
-    // 初始化完成后绑定 SMTC 服务到播放器模型
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final playerModel = Provider.of<PlayerModel>(context, listen: false);
       WindowsSmtcService.instance.attachPlayer(playerModel);
+      _applyWindowEffect();
+      _handleAuthChanged();
     });
+  }
 
-    NeteaseMusicApi().usc.listenLoginState((state, info) {
-      setState(() {
-        _logined = state == LoginState.Logined;
-        _accountInfo = info;
-      });
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final authModel = context.read<AuthModel>();
+    if (_authModel != authModel) {
+      _authModel?.removeListener(_handleAuthChanged);
+      _authModel = authModel;
+      _authModel!.addListener(_handleAuthChanged);
+    }
+  }
 
-      // 当登录状态发生变化时，通知PlayerModel更新喜欢歌曲列表
-      if (state == LoginState.Logined) {
-        // 我们不能在initState中直接使用Provider.of，所以使用延迟回调
-        Future.delayed(Duration(milliseconds: 300), () {
-          if (mounted) {
-            // 确保组件仍然挂载
-            Provider.of<PlayerModel>(context, listen: false).fetchLikedSongs();
-          }
+  void _handleAuthChanged() {
+    if (!mounted) return;
+    final auth = _authModel;
+    if (auth == null) return;
+
+    final userId = auth.accountInfo?.profile?.userId;
+    Provider.of<PlayerModel>(context, listen: false).syncLoginUser(userId);
+
+    if (auth.isLoggedIn) {
+      if (_routeToHomeOnNextLogin && _selectedIndex == 3) {
+        setState(() {
+          _selectedIndex = 0;
         });
       }
-    });
-    _logined = NeteaseMusicApi().usc.isLogined;
-    _accountInfo = NeteaseMusicApi().usc.accountInfo;
+      _routeToHomeOnNextLogin = false;
+    } else {
+      _routeToHomeOnNextLogin = true;
+    }
 
-    // 如果用户已经登录，也要刷新一次喜欢列表
-    if (_logined) {
-      Future.delayed(Duration(milliseconds: 300), () {
-        if (mounted) {
-          Provider.of<PlayerModel>(context, listen: false).fetchLikedSongs();
-        }
+    if (!auth.isLoggedIn && _selectedIndex != 3) {
+      setState(() {
+        _selectedIndex = 3;
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _authModel?.removeListener(_handleAuthChanged);
+    super.dispose();
   }
 
   void _onNavTap(int idx) {
@@ -197,6 +215,8 @@ class _MainAppState extends State<MainApp> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthModel>();
+
     return ContextMenuOverlay(
       child: MaterialApp(
         theme: ThemeData(
@@ -307,8 +327,8 @@ class _MainAppState extends State<MainApp> {
                               label: Text('我的'),
                             ),
                             NavigationRailDestination(
-                              icon: Icon(Icons.login),
-                              label: Text('登录'),
+                              icon: Icon(Icons.account_circle),
+                              label: Text('账号'),
                             ),
                             NavigationRailDestination(
                               icon: Icon(Icons.settings),
@@ -325,9 +345,11 @@ class _MainAppState extends State<MainApp> {
                               } else if (_selectedIndex == 1) {
                                 return const SearchPage();
                               } else if (_selectedIndex == 2) {
-                                return const ProfilePage();
+                                return auth.isLoggedIn
+                                    ? const ProfilePage()
+                                    : const LoginPage();
                               } else if (_selectedIndex == 3) {
-                                return LoginPage();
+                                return const LoginPage();
                               } else {
                                 return SettingsPage(
                                   themeMode: _themeMode,
@@ -480,9 +502,7 @@ class PlayerBar extends StatelessWidget {
                     ),
                     tooltip: player.isCurrentSongLiked() ? '取消喜欢' : '喜欢',
                     onPressed: () async {
-                      if (song.id != null) {
-                        await player.toggleLikeSong(song.id!);
-                      }
+                      await player.toggleLikeSong(song.id);
                     },
                   ),
                   // 添加收藏到歌单按钮
@@ -490,9 +510,7 @@ class PlayerBar extends StatelessWidget {
                     icon: const Icon(Icons.playlist_add, size: 20),
                     tooltip: '收藏到歌单',
                     onPressed: () {
-                      if (song.id != null) {
-                        _showAddToPlaylistDialog(context, song.id!, player);
-                      }
+                      _showAddToPlaylistDialog(context, song.id, player);
                     },
                   ),
                   IconButton(
@@ -510,9 +528,9 @@ class PlayerBar extends StatelessWidget {
                     ),
                     onPressed: () {
                       if (player.isPlaying) {
-                        player.audioPlayer.pause();
+                        player.pause();
                       } else {
-                        player.audioPlayer.play();
+                        player.resume();
                       }
                     },
                   ),

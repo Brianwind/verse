@@ -33,9 +33,10 @@ class _HomePageState extends State<HomePage> {
     try {
       // 使用网易云API获取每日推荐歌曲
       final result = await NeteaseMusicApi().recommendSongList();
-      if (result.code == 200 && result.data?.dailySongs != null) {
+      if (!mounted) return;
+      if (result.code == 200 && result.data.dailySongs != null) {
         setState(() {
-          _recommendSongs = result.data!.dailySongs!;
+          _recommendSongs = result.data.dailySongs!;
           _isLoading = false;
         });
       } else {
@@ -45,6 +46,7 @@ class _HomePageState extends State<HomePage> {
         });
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = '获取推荐歌曲失败: $e';
         _isLoading = false;
@@ -56,7 +58,7 @@ class _HomePageState extends State<HomePage> {
     final player = Provider.of<PlayerModel>(context, listen: false);
 
     // 获取歌曲播放地址
-    final urlWrap = await NeteaseMusicApi().songUrl([song.id!]);
+    final urlWrap = await NeteaseMusicApi().songUrl([song.id]);
     if (urlWrap.data?.isNotEmpty == true && urlWrap.data![0].url != null) {
       String url = urlWrap.data![0].url!;
 

@@ -25,7 +25,6 @@ class _PlayerScreenState extends State<PlayerScreen>
   Timer? _hideControlsTimer;
   bool _isMouseInWindow = false;
   bool _isMouseOverAppBar = false; // 新增变量，跟踪鼠标是否在AppBar区域
-  bool _isBackgroundReady = false;
 
   // 存储从封面图片提取的主题颜色
   ImageThemeColors? _themeColors;
@@ -55,7 +54,6 @@ class _PlayerScreenState extends State<PlayerScreen>
 
         if (mounted) {
           setState(() {
-            _isBackgroundReady = true;
             _themeColors = themeColors;
           });
         }
@@ -487,9 +485,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                               tooltip:
                                   player.isCurrentSongLiked() ? '取消喜欢' : '喜欢',
                               onPressed: () async {
-                                if (song.id != null) {
-                                  await player.toggleLikeSong(song.id!);
-                                }
+                                await player.toggleLikeSong(song.id);
                               },
                             ),
                             // 添加收藏到歌单按钮
@@ -502,13 +498,11 @@ class _PlayerScreenState extends State<PlayerScreen>
                               splashRadius: 20,
                               tooltip: '收藏到歌单',
                               onPressed: () {
-                                if (song.id != null) {
-                                  _showAddToPlaylistDialog(
-                                    context,
-                                    song.id!,
-                                    player,
-                                  );
-                                }
+                                _showAddToPlaylistDialog(
+                                  context,
+                                  song.id,
+                                  player,
+                                );
                               },
                             ),
                           ],
@@ -541,9 +535,9 @@ class _PlayerScreenState extends State<PlayerScreen>
                             constraints: const BoxConstraints(),
                             onPressed: () {
                               if (player.isPlaying) {
-                                player.audioPlayer.pause();
+                                player.pause();
                               } else {
-                                player.audioPlayer.play();
+                                player.resume();
                               }
                             },
                           ),

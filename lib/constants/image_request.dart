@@ -8,15 +8,38 @@ const Map<String, String> _neteaseImageHeaders = {
   'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
 };
 
-String? normalizeImageUrl(String? rawUrl) {
+const int _defaultNeteaseImageSize = 512;
+
+String? normalizeImageUrl(
+  String? rawUrl, {
+  int neteaseImageSize = _defaultNeteaseImageSize,
+}) {
   if (rawUrl == null) return null;
-  final url = rawUrl.trim();
+  var url = rawUrl.trim();
   if (url.isEmpty) return null;
-  if (url.startsWith('//')) return 'https:$url';
+  if (url.startsWith('//')) url = 'https:$url';
   if (url.startsWith('http://')) {
-    return 'https://${url.substring('http://'.length)}';
+    url = 'https://${url.substring('http://'.length)}';
   }
-  return url;
+
+  final uri = Uri.tryParse(url);
+  if (uri == null || !_isNeteaseImageHost(uri.host)) return url;
+  if (uri.queryParameters.containsKey('param')) return url;
+  if (neteaseImageSize < 1) return url;
+
+  return uri
+      .replace(
+        queryParameters: {
+          ...uri.queryParameters,
+          'param': '${neteaseImageSize}y$neteaseImageSize',
+        },
+      )
+      .toString();
+}
+
+bool _isNeteaseImageHost(String host) {
+  final lowerHost = host.toLowerCase();
+  return lowerHost == 'music.126.net' || lowerHost.endsWith('.music.126.net');
 }
 
 Map<String, String>? imageHeadersFor(String? rawUrl) {
@@ -25,11 +48,7 @@ Map<String, String>? imageHeadersFor(String? rawUrl) {
 
   final uri = Uri.tryParse(url);
   if (uri == null) return null;
-
-  final host = uri.host.toLowerCase();
-  final isNeteaseImage =
-      host == 'music.126.net' || host.endsWith('.music.126.net');
-  if (!isNeteaseImage) return null;
+  if (!_isNeteaseImageHost(uri.host)) return null;
 
   return _neteaseImageHeaders;
 }

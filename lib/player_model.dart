@@ -3,6 +3,8 @@ import 'package:just_audio/just_audio.dart';
 import 'dart:async'; // 添加 StreamSubscription 所需导入
 import 'fluid_background.dart'; // 导入FluidBackground
 import 'netease_api/netease_music_api.dart';
+import 'utils/lru_cache.dart';
+import 'utils/playback_start_policy.dart';
 
 enum PlayMode { order, shuffle }
 
@@ -24,51 +26,63 @@ class PlayerModel extends ChangeNotifier {
   List<int> _shuffleOrder = [];
 
   bool _isAutoChanging = false;
-  bool _isSwitchingSong = false; // 添加切歌状态标志
+  int _playRequestToken = 0;
+  String? _syncedLoginUserId;
 
-  late final StreamSubscription<PlaybackEvent> _playbackEventSubscription;
+  final List<StreamSubscription> _subscriptions = [];
+  Timer? _completionPollTimer;
 
   // 添加喜欢歌曲状态Map，用于缓存歌曲的喜欢状态
   final Map<String, bool> _likedSongs = {};
 
   // 用于缓存歌曲URL的映射，避免重复请求
-  final Map<String, String> _songUrlCache = {};
+  final LruCache<String, String> _songUrlCache = LruCache(capacity: 100);
 
   // 使用单独的缓存锁避免同一首歌多次请求URL
   final Set<String> _fetchingUrls = {};
 
-  // 添加URL预缓存功能，提前加载下一首歌曲的URL
-  Future<void> _preloadNextSongUrl() async {
-    if (_playlistTracks.isEmpty || _currentIndex < 0) return;
+  int? _playlistTrackIndexForQueueOffset(int offset) {
+    if (_playlistTracks.isEmpty || _currentIndex < 0) return null;
+    if (offset < 1) return null;
 
-    // 计算下一首歌的索引
-    int nextIndex;
     if (_playMode == PlayMode.order) {
-      nextIndex = (_currentIndex + 1) % _playlistTracks.length;
-    } else {
-      nextIndex = (_currentIndex + 1) % _shuffleOrder.length;
-      nextIndex = _shuffleOrder[nextIndex];
+      return (_currentIndex + offset) % _playlistTracks.length;
     }
 
-    final nextSong = _playlistTracks[nextIndex];
-    if (nextSong.id != null && !_songUrlCache.containsKey(nextSong.id)) {
+    if (_shuffleOrder.isEmpty) return null;
+    final queueIndex = (_currentIndex + offset) % _shuffleOrder.length;
+    final trackIndex = _shuffleOrder[queueIndex];
+    if (trackIndex < 0 || trackIndex >= _playlistTracks.length) return null;
+    return trackIndex;
+  }
+
+  // 添加URL预缓存功能，提前加载后续歌曲的URL
+  Future<void> _preloadUpcomingSongUrls({int count = 2}) async {
+    if (_playlistTracks.isEmpty || _currentIndex < 0) return;
+
+    for (var offset = 1; offset <= count; offset++) {
+      final trackIndex = _playlistTrackIndexForQueueOffset(offset);
+      if (trackIndex == null) continue;
+
+      final songId = _playlistTracks[trackIndex].id;
+      if (_songUrlCache.containsKey(songId) || _fetchingUrls.contains(songId)) {
+        continue;
+      }
+
       // 非阻塞式预加载
-      _getSongUrl(nextSong.id).then((url) {
-        // 已经预缓存URL，无需其他操作
-      });
+      unawaited(
+        _getSongUrl(songId).catchError((e) {
+          debugPrint('预加载后续歌曲URL失败: $e');
+          return '';
+        }),
+      );
     }
   }
 
   String? get nextSongId {
-    if (_playlistTracks.isEmpty || _currentIndex < 0) return null;
-    int nextIndex;
-    if (_playMode == PlayMode.order) {
-      nextIndex = (_currentIndex + 1) % _playlistTracks.length;
-    } else {
-      nextIndex = (_currentIndex + 1) % _shuffleOrder.length;
-      nextIndex = _shuffleOrder[nextIndex];
-    }
-    return _playlistTracks[nextIndex].id;
+    final trackIndex = _playlistTrackIndexForQueueOffset(1);
+    if (trackIndex == null) return null;
+    return _playlistTracks[trackIndex].id;
   }
 
   Song2? get currentSong => _currentSong;
@@ -83,36 +97,42 @@ class PlayerModel extends ChangeNotifier {
   PlayMode get playMode => _playMode;
 
   PlayerModel() {
-    _audioPlayer.positionStream.listen((pos) {
-      _position = pos;
-      notifyListeners();
-    });
-
-    _audioPlayer.durationStream.listen((dur) {
-      if (dur != null) {
-        _duration = dur;
+    _subscriptions.add(
+      _audioPlayer.positionStream.listen((pos) {
+        _position = pos;
         notifyListeners();
-      }
-    });
+      }),
+    );
 
-    _audioPlayer.playerStateStream.listen((state) {
-      // 在切歌过程中，忽略 playing=false 的状态更新，保持 UI 为播放状态
-      if (_isSwitchingSong && !state.playing) {
-        return;
-      }
-      _isPlaying = state.playing;
-      notifyListeners();
-    });
+    _subscriptions.add(
+      _audioPlayer.durationStream.listen((dur) {
+        if (dur != null) {
+          _duration = dur;
+          notifyListeners();
+        }
+      }),
+    );
 
-    _audioPlayer.processingStateStream.listen((state) {
-      debugPrint("处理状态变化: $state");
-      if (state == ProcessingState.completed) {
-        debugPrint("播放完成，准备播放下一首");
-        _playNextSafe();
-      }
-    });
+    _subscriptions.add(
+      _audioPlayer.playerStateStream.listen((state) {
+        _isPlaying = state.playing;
+        notifyListeners();
+      }),
+    );
 
-    Stream.periodic(const Duration(milliseconds: 500)).listen((_) {
+    _subscriptions.add(
+      _audioPlayer.processingStateStream.listen((state) {
+        debugPrint("处理状态变化: $state");
+        if (state == ProcessingState.completed) {
+          debugPrint("播放完成，准备播放下一首");
+          _playNextSafe();
+        }
+      }),
+    );
+
+    _completionPollTimer = Timer.periodic(const Duration(milliseconds: 500), (
+      _,
+    ) {
       if (_audioPlayer.position.inMilliseconds > 0 &&
           _audioPlayer.duration != null &&
           _audioPlayer.duration!.inMilliseconds > 0 &&
@@ -125,17 +145,55 @@ class PlayerModel extends ChangeNotifier {
       }
     });
 
-    _playbackEventSubscription = _audioPlayer.playbackEventStream.listen((
-      event,
-    ) {
-      if (event.processingState == ProcessingState.completed) {
-        debugPrint("从playbackEventStream检测到播放完成");
-        _playNextSafe();
-      }
-    });
+    _subscriptions.add(
+      _audioPlayer.playbackEventStream.listen((event) {
+        if (event.processingState == ProcessingState.completed) {
+          debugPrint("从playbackEventStream检测到播放完成");
+          _playNextSafe();
+        }
+      }),
+    );
+  }
 
-    // 初始化时加载用户喜欢的歌曲列表
+  void syncLoginUser(String? userId) {
+    if (_syncedLoginUserId == userId) return;
+
+    _syncedLoginUserId = userId;
+    _likedSongs.clear();
+
+    if (userId == null || userId.isEmpty) {
+      notifyListeners();
+      return;
+    }
+
     fetchLikedSongs();
+  }
+
+  Future<void> clearSessionState({bool stopAudio = true}) async {
+    _playRequestToken++;
+    _isAutoChanging = false;
+    _currentSong = null;
+    _songUrl = null;
+    _isPlaying = false;
+    _position = Duration.zero;
+    _duration = Duration.zero;
+    _playlistId = null;
+    _playlistTracks = [];
+    _currentIndex = -1;
+    _shuffleOrder = [];
+    _likedSongs.clear();
+    _songUrlCache.clear();
+    _fetchingUrls.clear();
+
+    if (stopAudio) {
+      try {
+        await _audioPlayer.stop();
+      } catch (e) {
+        debugPrint('停止播放器失败: $e');
+      }
+    }
+
+    notifyListeners();
   }
 
   void _playNextSafe() {
@@ -279,7 +337,9 @@ class PlayerModel extends ChangeNotifier {
 
       for (int attempt = 0; attempt <= _maxSongUrlRetry; attempt++) {
         try {
-          final urlWrap = await NeteaseMusicApi().songUrl([songId]);
+          final urlWrap = await NeteaseMusicApi()
+              .songUrl([songId])
+              .timeout(const Duration(seconds: 8));
           url =
               urlWrap.data?.isNotEmpty == true
                   ? urlWrap.data![0].url ?? ''
@@ -302,6 +362,87 @@ class PlayerModel extends ChangeNotifier {
     }
   }
 
+  bool _isCurrentPlaybackRequest(int token) => token == _playRequestToken;
+
+  Future<bool> _waitForPlaybackStart(
+    int token,
+    Stopwatch commandStopwatch,
+  ) async {
+    const pollInterval = Duration(milliseconds: 50);
+    const timeout = Duration(milliseconds: 900);
+    final waitStopwatch = Stopwatch()..start();
+
+    while (waitStopwatch.elapsed < timeout) {
+      if (!_isCurrentPlaybackRequest(token)) return false;
+      if (isPlaybackStartConfirmed(
+        requestActive: true,
+        playerPlaying: _audioPlayer.playing,
+        processingReady: _audioPlayer.processingState == ProcessingState.ready,
+        elapsedSinceCommand: commandStopwatch.elapsed,
+      )) {
+        return true;
+      }
+      await Future.delayed(pollInterval);
+    }
+
+    return isPlaybackStartConfirmed(
+      requestActive: _isCurrentPlaybackRequest(token),
+      playerPlaying: _audioPlayer.playing,
+      processingReady: _audioPlayer.processingState == ProcessingState.ready,
+      elapsedSinceCommand: commandStopwatch.elapsed,
+    );
+  }
+
+  Future<bool> _issuePlayCommand(int token) async {
+    if (!_isCurrentPlaybackRequest(token)) return false;
+
+    try {
+      await _audioPlayer.play().timeout(playCommandDispatchTimeout);
+      return true;
+    } on TimeoutException {
+      if (_isCurrentPlaybackRequest(token)) {
+        debugPrint("播放命令未在限定时间内下发到插件");
+      }
+      return false;
+    } catch (e) {
+      if (_isCurrentPlaybackRequest(token)) {
+        debugPrint("播放指令发生错误: $e");
+        _isPlaying = false;
+        notifyListeners();
+      }
+      return false;
+    }
+  }
+
+  Future<void> _sendPlayCommand(int token) async {
+    for (var attempt = 0; attempt < 2; attempt++) {
+      if (!_isCurrentPlaybackRequest(token)) return;
+
+      final commandStopwatch = Stopwatch()..start();
+      final issued = await _issuePlayCommand(token);
+      if (!_isCurrentPlaybackRequest(token)) return;
+
+      if (issued && await _waitForPlaybackStart(token, commandStopwatch)) {
+        return;
+      }
+
+      if (!_isCurrentPlaybackRequest(token)) return;
+      debugPrint(issued ? "播放命令未确认启动，准备重试" : "播放命令未确认下发，准备重试");
+      try {
+        await _audioPlayer.pause().timeout(const Duration(milliseconds: 200));
+      } catch (e) {
+        debugPrint("重试播放前暂停失败: $e");
+      }
+      await Future.delayed(const Duration(milliseconds: 120));
+    }
+
+    if (_isCurrentPlaybackRequest(token)) {
+      debugPrint("播放命令发送后未进入播放状态");
+      _isPlaying = _audioPlayer.playing;
+      notifyListeners();
+    }
+  }
+
   Future<void> playSong(Song2 song, String url) async {
     if (url.isEmpty) {
       debugPrint("播放歌曲URL为空: ${song.name}");
@@ -313,13 +454,12 @@ class PlayerModel extends ChangeNotifier {
 
     // 设置加载标志
     debugPrint("开始加载歌曲: ${song.name}");
+    final requestToken = ++_playRequestToken;
 
     // 预加载下一首歌曲，提高响应速度
     Future.microtask(() {
-      _preloadNextSongUrl();
+      _preloadUpcomingSongUrls();
     });
-
-    _isSwitchingSong = true; // 标记开始切歌
 
     _currentSong = song;
     _songUrl = url;
@@ -331,12 +471,14 @@ class PlayerModel extends ChangeNotifier {
         FluidBackground.preloadBackground(song.al?.picUrl);
       }
 
-      // 先指示状态改变，提高UI响应速度
-      _isPlaying = true;
+      _position = Duration.zero;
+      _duration = Duration.zero;
+      _isPlaying = false;
       notifyListeners();
 
       // 停止当前播放，准备新的音频源
       await _audioPlayer.stop();
+      if (!_isCurrentPlaybackRequest(requestToken)) return;
 
       debugPrint("设置音频源: $url");
       final stopwatch = Stopwatch()..start();
@@ -356,41 +498,23 @@ class PlayerModel extends ChangeNotifier {
           );
 
       debugPrint("设置音频源完成，耗时: ${stopwatch.elapsedMilliseconds}ms");
+      if (!_isCurrentPlaybackRequest(requestToken)) return;
 
-      // 强制延迟一小段时间，确保音频源已准备就绪
-      // await Future.delayed(const Duration(milliseconds: 50));
-
-      // 确保UI状态为播放
-      if (!_isPlaying) {
-        _isPlaying = true;
-        notifyListeners();
-      }
+      await Future.delayed(const Duration(milliseconds: 80));
+      if (!_isCurrentPlaybackRequest(requestToken)) return;
 
       // 使用明确的播放指令，并捕获所有可能的错误
-      try {
-        debugPrint("发送播放命令");
-        // 使用同步播放命令
-        _audioPlayer.play();
-        debugPrint("播放命令已发送");
-      } catch (playError) {
-        debugPrint("播放指令发生错误: $playError");
-        // 如果播放失败，等待后重试
-        await Future.delayed(const Duration(milliseconds: 300));
-        try {
-          debugPrint("重试播放命令");
-          await _audioPlayer.play();
-        } catch (e) {
-          debugPrint("重试播放命令仍然失败: $e");
-        }
-      }
+      debugPrint("发送播放命令");
+      await _sendPlayCommand(requestToken);
+      debugPrint("播放命令已发送");
     } catch (e) {
       debugPrint("播放歌曲时出错: $e");
       // 出错时尝试播放下一首
-      if (_playlistTracks.isNotEmpty) {
+      if (_isCurrentPlaybackRequest(requestToken) &&
+          _playlistTracks.isNotEmpty) {
         await playNext();
       }
     } finally {
-      _isSwitchingSong = false; // 切歌结束
       // 移除手动同步，完全依赖流监听来更新状态，避免 play() 尚未生效时错误地将状态重置为 false
       /*
       if (_isPlaying != _audioPlayer.playing) {
@@ -402,11 +526,12 @@ class PlayerModel extends ChangeNotifier {
   }
 
   void pause() {
-    _audioPlayer.pause();
+    unawaited(_audioPlayer.pause());
   }
 
   void resume() {
-    _audioPlayer.play();
+    final requestToken = _playRequestToken;
+    unawaited(_sendPlayCommand(requestToken));
   }
 
   void seek(Duration pos) {
@@ -415,10 +540,11 @@ class PlayerModel extends ChangeNotifier {
 
   // 获取当前歌曲的喜欢状态
   bool isCurrentSongLiked() {
-    if (_currentSong?.id == null) return false;
+    final currentSong = _currentSong;
+    if (currentSong == null) return false;
 
     // 确保使用字符串格式的ID进行比较
-    final songId = _currentSong!.id.toString();
+    final songId = currentSong.id;
 
     // 直接检查ID是否在列表中
     if (_likedSongs.containsKey(songId)) {
@@ -448,7 +574,9 @@ class PlayerModel extends ChangeNotifier {
     // 也尝试检查不同格式的ID
     if (!(_likedSongs[songId] ?? false)) {
       // 如果当前格式没找到，尝试其他可能的格式
-      if (_likedSongs.containsKey(int.tryParse(songId)?.toString())) {
+      final numericSongId = int.tryParse(songId);
+      if (numericSongId != null &&
+          _likedSongs.containsKey(numericSongId.toString())) {
         return true;
       }
     }
@@ -460,46 +588,43 @@ class PlayerModel extends ChangeNotifier {
   Future<void> fetchLikedSongs() async {
     try {
       // 获取当前登录用户信息
-      final accountInfo = NeteaseMusicApi().usc.accountInfo;
-      if (accountInfo?.profile?.userId == null) {
+      final profile = NeteaseMusicApi().usc.accountInfo?.profile;
+      if (profile == null) {
         debugPrint('用户未登录，无法获取喜欢的歌曲');
         return;
       }
 
-      debugPrint('开始获取喜欢的歌曲列表，用户ID: ${accountInfo!.profile!.userId}');
+      debugPrint('开始获取喜欢的歌曲列表，用户ID: ${profile.userId}');
 
       // 调用API获取用户喜欢的歌曲列表
-      final result = await NeteaseMusicApi().likeSongList(
-        accountInfo.profile!.userId!,
-      );
-      if (result.code == 200 && result.ids != null) {
-        debugPrint('获取喜欢的歌曲列表成功: ${result.ids!.length}首');
+      final result = await NeteaseMusicApi().likeSongList(profile.userId);
+      if (result.code == 200) {
+        final ids = result.ids;
+        debugPrint('获取喜欢的歌曲列表成功: ${ids.length}首');
 
         // 清空当前缓存并更新
         _likedSongs.clear();
 
         // 记录前5个ID用于调试
-        final sampleIds =
-            result.ids!.take(5).map((id) => id.toString()).toList();
+        final sampleIds = ids.take(5).map((id) => id.toString()).toList();
         debugPrint('示例ID: ${sampleIds.join(", ")}');
 
         // 存储多种格式的ID以确保匹配
-        for (final id in result.ids!) {
+        for (final id in ids) {
           final strId = id.toString();
           _likedSongs[strId] = true;
 
           // 如果当前ID是当前播放歌曲的ID，打印确认信息
-          if (_currentSong != null &&
-              _currentSong!.id != null &&
-              (_currentSong!.id == strId ||
-                  _currentSong!.id.toString() == strId)) {
-            debugPrint('*** 当前播放歌曲(${_currentSong!.id})在喜欢列表中 ***');
+          final currentSong = _currentSong;
+          if (currentSong != null && currentSong.id == strId) {
+            debugPrint('*** 当前播放歌曲(${currentSong.id})在喜欢列表中 ***');
           }
         }
 
         // 如果当前正在播放歌曲，检查它是否在喜欢列表中
-        if (_currentSong != null && _currentSong!.id != null) {
-          final currId = _currentSong!.id.toString();
+        final currentSong = _currentSong;
+        if (currentSong != null) {
+          final currId = currentSong.id;
           final isLiked = _likedSongs.containsKey(currId);
           debugPrint('当前播放歌曲ID: $currId, 是否在喜欢列表中: $isLiked');
 
@@ -600,7 +725,10 @@ class PlayerModel extends ChangeNotifier {
 
   @override
   void dispose() {
-    _playbackEventSubscription.cancel();
+    _completionPollTimer?.cancel();
+    for (final subscription in _subscriptions) {
+      subscription.cancel();
+    }
     _audioPlayer.dispose();
     super.dispose();
   }

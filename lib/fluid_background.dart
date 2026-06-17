@@ -3,9 +3,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:palette_generator/palette_generator.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/foundation.dart';
 import 'package:material_color_utilities/material_color_utilities.dart';
 import 'constants/image_request.dart';
+import 'utils/lru_cache.dart';
 
 // 计算两个颜色之间的欧几里得距离的工具方法
 double _calculateColorDistance(Color color1, Color color2) {
@@ -64,21 +64,13 @@ class ImageThemeColors {
 
 // 全局缓存，保存已处理过的URL对应的颜色列表
 class _ColorCache {
-  static final Map<String, ImageThemeColors> _cache = {};
+  static final LruCache<String, ImageThemeColors> _cache = LruCache(
+    capacity: 100,
+  );
   static final Map<String, Completer<ImageThemeColors>> _loadingCompleters = {};
 
   static ImageThemeColors? getThemeColors(String url) {
     return _cache[url];
-  }
-
-  static void setThemeColors(String url, ImageThemeColors colors) {
-    _cache[url] = colors;
-
-    // 如果有等待这个URL颜色的Completer，完成它
-    if (_loadingCompleters.containsKey(url)) {
-      _loadingCompleters[url]!.complete(colors);
-      _loadingCompleters.remove(url);
-    }
   }
 
   static bool hasThemeColors(String url) {

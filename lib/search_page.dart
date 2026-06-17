@@ -51,6 +51,7 @@ class _SearchPageState extends State<SearchPage> {
         limit: 50,
         cloudSearch: false,
       );
+      if (!mounted) return;
       if (searchResult.code == 200 && searchResult.result.songs.isNotEmpty) {
         // 获取歌曲ID列表
         final songIds = searchResult.result.songs.map((s) => s.id).toList();
@@ -58,6 +59,7 @@ class _SearchPageState extends State<SearchPage> {
         // 调用 songDetail API 获取完整的歌曲信息（包括封面）
         final detailResult = await NeteaseMusicApi().songDetail(songIds);
 
+        if (!mounted) return;
         if (detailResult.code == 200 && detailResult.songs != null) {
           setState(() {
             _searchResults = detailResult.songs!;
@@ -71,6 +73,7 @@ class _SearchPageState extends State<SearchPage> {
           });
         }
       } else {
+        if (!mounted) return;
         setState(() {
           _searchResults = [];
           _errorMessage =
@@ -81,6 +84,7 @@ class _SearchPageState extends State<SearchPage> {
         });
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _searchResults = [];
         _errorMessage = '搜索失败: $e';
@@ -93,7 +97,7 @@ class _SearchPageState extends State<SearchPage> {
     final player = Provider.of<PlayerModel>(context, listen: false);
 
     // 获取歌曲播放地址
-    final urlWrap = await NeteaseMusicApi().songUrl([song.id!]);
+    final urlWrap = await NeteaseMusicApi().songUrl([song.id]);
     if (urlWrap.data?.isNotEmpty == true && urlWrap.data![0].url != null) {
       String url = urlWrap.data![0].url!;
 

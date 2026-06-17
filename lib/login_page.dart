@@ -1,107 +1,63 @@
-import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:async';
-import 'netease_api/src/netease_api.dart';
-import 'netease_api/src/api/login/bean.dart';
-import 'constants/image_request.dart';
 
-class LoginPage extends StatefulWidget {
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+
+import 'auth_model.dart';
+import 'constants/image_request.dart';
+import 'netease_api/src/netease_api.dart';
+import 'player_model.dart';
+
+class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
 
-  @override
-  State<LoginPage> createState() => _LoginPageState();
-}
+  Future<void> _logout(BuildContext context) async {
+    final auth = context.read<AuthModel>();
+    final player = context.read<PlayerModel>();
 
-class _LoginPageState extends State<LoginPage> {
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _pwdController = TextEditingController();
-  bool _loading = false;
-  late final StreamSubscription _loginSub;
+    await player.clearSessionState();
+    await auth.logout();
 
-  @override
-  void initState() {
-    super.initState();
-    _loginSub = NeteaseMusicApi().usc.listenLoginState((_, __) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _loginSub.cancel();
-    super.dispose();
-  }
-
-  void _login() async {
-    setState(() => _loading = true);
-    try {
-      final info = await NeteaseMusicApi().loginCellPhone(
-        _phoneController.text.trim(),
-        _pwdController.text.trim(),
+    if (!context.mounted) return;
+    final error = auth.errorMessage;
+    if (error != null && error.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), duration: const Duration(seconds: 2)),
       );
-      if (info.code == 200 && NeteaseMusicApi().usc.isLogined) {
-        // 登录成功后，刷新并显示最新用户信息
-        await NeteaseMusicApi().loginAccountInfo();
-        setState(() {});
-      } else {
-        _showError('登录失败: ${info.code} ${info.msg}');
-        return;
-      }
-    } catch (e) {
-      _showError('登录异常: $e');
-      return;
-    } finally {
-      setState(() => _loading = false);
     }
-  }
-
-  void _qrLogin() async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => _QrLoginDialog(onLogin: () => Navigator.of(ctx).pop()),
-    );
-  }
-
-  void _showError(String msg) {
-    showDialog(
-      context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('错误'),
-            content: Text(msg),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('确定'),
-              ),
-            ],
-          ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isLogined = NeteaseMusicApi().usc.isLogined;
-    final profile = NeteaseMusicApi().usc.accountInfo?.profile;
-    final avatarUrl = normalizeImageUrl(profile?.avatarUrl);
+    final auth = context.watch<AuthModel>();
+    final profile = auth.accountInfo?.profile;
+    final avatarUrl = normalizeImageUrl(
+      profile?.avatarUrl,
+      neteaseImageSize: 160,
+    );
 
-    if (isLogined && profile != null) {
+    if (auth.isLoggedIn && profile != null) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircleAvatar(
-              radius: 40,
-              backgroundImage:
-                  avatarUrl != null
-                      ? NetworkImage(
-                        avatarUrl,
-                        headers: imageHeadersFor(avatarUrl),
-                      )
-                      : null,
-              child:
-                  avatarUrl == null ? const Icon(Icons.person, size: 40) : null,
+            ClipOval(
+              child: SizedBox(
+                width: 80,
+                height: 80,
+                child:
+                    avatarUrl != null
+                        ? CachedNetworkImage(
+                          imageUrl: avatarUrl,
+                          httpHeaders: imageHeadersFor(avatarUrl),
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => const _AvatarFallback(),
+                          errorWidget: (_, __, ___) => const _AvatarFallback(),
+                        )
+                        : const _AvatarFallback(),
+              ),
             ),
             const SizedBox(height: 16),
             Text(
@@ -117,61 +73,62 @@ class _LoginPageState extends State<LoginPage> {
                   style: const TextStyle(fontSize: 14, color: Colors.grey),
                 ),
               ),
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              onPressed: auth.isBusy ? null : () => _logout(context),
+              icon:
+                  auth.isBusy
+                      ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                      : const Icon(Icons.logout),
+              label: const Text('退出登录'),
+            ),
           ],
         ),
       );
     }
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _phoneController,
-              decoration: const InputDecoration(labelText: '手机号'),
-              keyboardType: TextInputType.phone,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _pwdController,
-              decoration: const InputDecoration(labelText: '密码'),
-              obscureText: true,
-            ),
-            const SizedBox(height: 24),
-            _loading
-                ? const CircularProgressIndicator()
-                : Column(
-                  children: [
-                    ElevatedButton(onPressed: _login, child: const Text('登录')),
-                    const SizedBox(height: 12),
-                    OutlinedButton(
-                      onPressed: _qrLogin,
-                      child: const Text('二维码登录'),
-                    ),
-                  ],
-                ),
-          ],
-        ),
+
+    return const Center(
+      child: Padding(padding: EdgeInsets.all(24), child: _QrLoginPanel()),
+    );
+  }
+}
+
+class _AvatarFallback extends StatelessWidget {
+  const _AvatarFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: Icon(
+        Icons.person,
+        size: 40,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
       ),
     );
   }
 }
 
-class _QrLoginDialog extends StatefulWidget {
-  final VoidCallback onLogin;
-  const _QrLoginDialog({required this.onLogin});
+class _QrLoginPanel extends StatefulWidget {
+  const _QrLoginPanel();
 
   @override
-  State<_QrLoginDialog> createState() => _QrLoginDialogState();
+  State<_QrLoginPanel> createState() => _QrLoginPanelState();
 }
 
-class _QrLoginDialogState extends State<_QrLoginDialog> {
+class _QrLoginPanelState extends State<_QrLoginPanel> {
   String? _qrUrl;
   String? _qrKey;
-  String? _errMsg;
+  String? _message;
   bool _loading = true;
-  bool _disposed = false;
+  bool _checking = false;
+  bool _expired = false;
+  bool _isError = false;
+  Timer? _pollTimer;
 
   @override
   void initState() {
@@ -181,93 +138,139 @@ class _QrLoginDialogState extends State<_QrLoginDialog> {
 
   @override
   void dispose() {
-    _disposed = true;
+    _pollTimer?.cancel();
     super.dispose();
   }
 
-  void _startQr() async {
+  Future<void> _startQr() async {
+    _pollTimer?.cancel();
     setState(() {
+      _qrUrl = null;
+      _qrKey = null;
+      _message = null;
       _loading = true;
-      _errMsg = null;
+      _checking = false;
+      _expired = false;
+      _isError = false;
     });
+
     try {
       final keyBean = await NeteaseMusicApi().loginQrCodeKey();
       final key = keyBean.unikey;
       final url = NeteaseMusicApi().loginQrCodeUrl(key);
+
+      if (!mounted) return;
       setState(() {
         _qrKey = key;
         _qrUrl = url;
         _loading = false;
       });
-      _pollStatus(key);
+      _pollTimer = Timer.periodic(
+        const Duration(seconds: 1),
+        (_) => _checkStatus(),
+      );
     } catch (e) {
+      if (!mounted) return;
       setState(() {
-        _errMsg = '二维码获取失败: $e';
+        _message = '二维码获取失败: $e';
         _loading = false;
+        _expired = true;
+        _isError = true;
       });
     }
   }
 
-  void _pollStatus(String key) async {
-    while (!_disposed) {
-      await Future.delayed(const Duration(seconds: 1));
-      try {
-        final status = await NeteaseMusicApi().loginQrCodeCheck(key);
-        if (status.code == 803) {
-          await NeteaseMusicApi().loginAccountInfo();
-          widget.onLogin();
-          break;
-        } else if (status.code == 800) {
-          setState(() => _errMsg = '二维码已过期');
-          break;
-        } else if (status.code == 802) {
-          // 已扫码，等待确认
-          setState(() => _errMsg = '请在手机上确认登录');
-        } else {
-          setState(() => _errMsg = null);
-        }
-      } catch (e) {
-        setState(() => _errMsg = '状态检查失败: $e');
+  Future<void> _checkStatus() async {
+    final key = _qrKey;
+    if (_checking || key == null || _expired) return;
+
+    _checking = true;
+    try {
+      final status = await NeteaseMusicApi().loginQrCodeCheck(key);
+      if (!mounted) return;
+
+      if (status.code == 803) {
+        _pollTimer?.cancel();
+        setState(() {
+          _message = '登录成功，正在加载账号信息...';
+          _isError = false;
+        });
+        await NeteaseMusicApi().loginAccountInfo();
+      } else if (status.code == 800) {
+        _pollTimer?.cancel();
+        setState(() {
+          _message = '二维码已过期';
+          _expired = true;
+          _isError = true;
+        });
+      } else if (status.code == 802) {
+        setState(() {
+          _message = '请在手机上确认登录';
+          _isError = false;
+        });
+      } else {
+        setState(() {
+          _message = null;
+          _isError = false;
+        });
       }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _message = '状态检查失败: $e';
+        _isError = true;
+      });
+    } finally {
+      _checking = false;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('二维码登录'),
-      content: SizedBox(
-        width: 220,
-        child:
-            _loading
-                ? const Center(child: CircularProgressIndicator())
-                : Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (_qrUrl != null)
-                      SizedBox(
-                        width: 180,
-                        height: 180,
-                        child: QrImageView(
-                          data: _qrUrl!,
-                          version: QrVersions.auto,
-                          size: 180,
-                        ),
-                      ),
-                    if (_errMsg != null) ...[
-                      const SizedBox(height: 12),
-                      Text(_errMsg!, style: const TextStyle(color: Colors.red)),
-                    ],
-                  ],
-                ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('取消'),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text('扫码登录', style: TextStyle(fontSize: 22)),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: 220,
+          height: 220,
+          child:
+              _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _qrUrl != null
+                  ? Center(
+                    child: QrImageView(
+                      data: _qrUrl!,
+                      version: QrVersions.auto,
+                      size: 200,
+                    ),
+                  )
+                  : const Center(child: Icon(Icons.qr_code_2, size: 80)),
         ),
-        if (!_loading && _errMsg == '二维码已过期')
-          TextButton(onPressed: _startQr, child: const Text('重新获取')),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 24,
+          child:
+              _message == null
+                  ? const SizedBox.shrink()
+                  : Text(
+                    _message!,
+                    style: TextStyle(
+                      color:
+                          _isError
+                              ? Theme.of(context).colorScheme.error
+                              : Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+        ),
+        const SizedBox(height: 16),
+        if (_expired)
+          OutlinedButton.icon(
+            onPressed: _startQr,
+            icon: const Icon(Icons.refresh),
+            label: const Text('重新获取'),
+          ),
       ],
     );
   }
