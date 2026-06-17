@@ -203,7 +203,7 @@ class _ColorCache {
 
   // 将Flutter Color转换为ARGB int (Material Color Utilities格式)
   static int _colorToARGB(Color color) {
-    return (255 << 24) | (color.red << 16) | (color.green << 8) | color.blue;
+    return color.toARGB32();
   }
 
   // 将ARGB int转回Flutter Color
@@ -213,7 +213,7 @@ class _ColorCache {
       (argb >> 16) & 0xFF,
       (argb >> 8) & 0xFF,
       argb & 0xFF,
-    ).value;
+    ).toARGB32();
   }
 }
 
@@ -424,8 +424,8 @@ class _FluidBackgroundState extends State<FluidBackground>
         // 高斯模糊层 - 使用低精度更快的模糊减少计算量
         Positioned.fill(
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 64, sigmaY: 64), // 降低模糊半径提高性能
-            child: Container(color: Colors.black.withOpacity(0.3)),
+            filter: ImageFilter.blur(sigmaX: 36, sigmaY: 36),
+            child: Container(color: Colors.black.withValues(alpha: 0.3)),
           ),
         ),
       ],
@@ -442,13 +442,13 @@ class FluidBackgroundWrapper extends StatelessWidget {
   final Function(ImageThemeColors)? onThemeColorsExtracted;
 
   const FluidBackgroundWrapper({
-    Key? key,
+    super.key,
     required this.child,
     this.imageUrl,
     this.isPlaying = true,
     this.staticMode = true,
     this.onThemeColorsExtracted,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

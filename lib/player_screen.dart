@@ -207,14 +207,16 @@ class _PlayerScreenState extends State<PlayerScreen>
         child: Stack(
           children: [
             // 使用AnimatedSwitcher确保背景平滑过渡
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              child: FluidBackground(
-                key: ValueKey(cover ?? 'no-cover'), // 确保图片变化时重建Widget
-                imageUrl: cover,
-                isPlaying: player.isPlaying,
-                staticMode: true, // 总是使用静态模式
-                onThemeColorsExtracted: _onThemeColorsExtracted, // 添加颜色更新回调
+            RepaintBoundary(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: FluidBackground(
+                  key: ValueKey(cover ?? 'no-cover'), // 确保图片变化时重建Widget
+                  imageUrl: cover,
+                  isPlaying: player.isPlaying,
+                  staticMode: true, // 总是使用静态模式
+                  onThemeColorsExtracted: _onThemeColorsExtracted, // 添加颜色更新回调
+                ),
               ),
             ),
             Positioned.fill(
@@ -359,9 +361,11 @@ class _PlayerScreenState extends State<PlayerScreen>
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 620),
-                child: LyricsView(
-                  songId: song.id,
-                  themeColors: _themeColors, // 传递主题颜色给歌词组件
+                child: RepaintBoundary(
+                  child: LyricsView(
+                    songId: song.id,
+                    themeColors: _themeColors, // 传递主题颜色给歌词组件
+                  ),
                 ),
               ),
             ),

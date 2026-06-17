@@ -27,4 +27,24 @@ void main() {
       },
     );
   });
+
+  group('lyricLineVisibilityOpacity', () {
+    test(
+      'keeps nearby lyrics opaque and hides distant lyrics with opacity',
+      () {
+        expect(
+          lyricLineVisibilityOpacity(index: 5, currentIndex: 5, lineCount: 12),
+          1.0,
+        );
+        expect(
+          lyricLineVisibilityOpacity(index: 8, currentIndex: 5, lineCount: 12),
+          1.0,
+        );
+        expect(
+          lyricLineVisibilityOpacity(index: 9, currentIndex: 5, lineCount: 12),
+          0.0,
+        );
+      },
+    );
+  });
 }

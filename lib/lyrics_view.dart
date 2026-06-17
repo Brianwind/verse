@@ -33,7 +33,7 @@ class _LyricsViewState extends State<LyricsView> {
   List<Map<String, dynamic>> _lineTransforms = [];
   final bool _lyricFade = true; // 渐变效果
   final bool _lyricZoom = true; // 缩放效果
-  final bool _lyricBlur = true; // 模糊效果
+  final bool _lyricBlur = false; // 模糊效果
 
   // 滚动相关的属性
   final bool _scrollingMode = false;
@@ -338,12 +338,7 @@ class _LyricsViewState extends State<LyricsView> {
             clipBehavior: Clip.none,
             children: [
               for (int i = 0; i < sortedTimes.length; i++)
-                if (isLyricLineVisible(
-                  index: i,
-                  currentIndex: _currentLyricIndex,
-                  lineCount: sortedTimes.length,
-                ))
-                  _buildLyricLine(sortedTimes[i], i),
+                _buildLyricLine(sortedTimes[i], i, sortedTimes.length),
             ],
           ),
         );
@@ -352,7 +347,7 @@ class _LyricsViewState extends State<LyricsView> {
   }
 
   // 构建单个歌词行
-  Widget _buildLyricLine(int time, int index) {
+  Widget _buildLyricLine(int time, int index, int lineCount) {
     final lyric = _parsedLyrics[time]!;
     final isCurrentLyric = index == _currentLyricIndex;
 
@@ -363,6 +358,11 @@ class _LyricsViewState extends State<LyricsView> {
 
     final transform = _lineTransforms[index];
     final blurValue = transform['blur'] as double? ?? 0.0;
+    final visibilityOpacity = lyricLineVisibilityOpacity(
+      index: index,
+      currentIndex: _currentLyricIndex,
+      lineCount: lineCount,
+    );
 
     // 使用主题颜色
     final Color currentLyricColor =
@@ -372,43 +372,59 @@ class _LyricsViewState extends State<LyricsView> {
         Theme.of(context).textTheme.bodyMedium?.color ??
         Colors.white70;
 
-    return AnimatedPositioned(
-      top: transform['top'] as double? ?? 0,
+    final lineText = Text(
+      lyric,
+      style: TextStyle(
+        fontSize: isCurrentLyric ? 30 : 26,
+        fontWeight: isCurrentLyric ? FontWeight.w700 : FontWeight.w500,
+        color: isCurrentLyric ? currentLyricColor : normalLyricColor,
+      ),
+      textAlign: TextAlign.left,
+    );
+    final lineContent =
+        blurValue > 0
+            ? ImageFiltered(
+              imageFilter: ImageFilter.blur(
+                sigmaX: blurValue,
+                sigmaY: blurValue,
+              ),
+              child: lineText,
+            )
+            : lineText;
+
+    return Positioned(
+      key: ValueKey('lyric-line-$time'),
       left: 0,
       right: 0,
-      duration: Duration(milliseconds: 500),
-      curve: Curves.easeOutCubic,
-      child: AnimatedOpacity(
-        opacity: transform['opacity'] as double? ?? 1.0,
-        duration: Duration(milliseconds: 500),
-        child: AnimatedScale(
-          scale: transform['scale'] as double? ?? 1.0,
-          duration: Duration(milliseconds: 500),
-          alignment: Alignment.centerLeft, // 设置缩放锚点为左侧中心
-          child: GestureDetector(
-            onTap: () {
-              // 点击歌词跳转播放
-              final player = Provider.of<PlayerModel>(context, listen: false);
-              player.seek(Duration(milliseconds: time));
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              // 使用 ImageFiltered 添加高斯模糊效果
-              child: ImageFiltered(
-                imageFilter:
-                    blurValue > 0
-                        ? ImageFilter.blur(sigmaX: blurValue, sigmaY: blurValue)
-                        : ImageFilter.blur(sigmaX: 0, sigmaY: 0),
-                child: Text(
-                  lyric,
-                  style: TextStyle(
-                    fontSize: isCurrentLyric ? 30 : 26,
-                    fontWeight:
-                        isCurrentLyric ? FontWeight.w700 : FontWeight.w500,
-                    color:
-                        isCurrentLyric ? currentLyricColor : normalLyricColor,
-                  ),
-                  textAlign: TextAlign.left,
+      top: 0,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween<double>(end: transform['top'] as double? ?? 0),
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeOutCubic,
+        builder:
+            (context, top, child) =>
+                Transform.translate(offset: Offset(0, top), child: child),
+        child: AnimatedOpacity(
+          opacity: (transform['opacity'] as double? ?? 1.0) * visibilityOpacity,
+          duration: const Duration(milliseconds: 500),
+          child: AnimatedScale(
+            scale: transform['scale'] as double? ?? 1.0,
+            duration: const Duration(milliseconds: 500),
+            alignment: Alignment.centerLeft, // 设置缩放锚点为左侧中心
+            child: IgnorePointer(
+              ignoring: visibilityOpacity == 0.0,
+              child: GestureDetector(
+                onTap: () {
+                  // 点击歌词跳转播放
+                  final player = Provider.of<PlayerModel>(
+                    context,
+                    listen: false,
+                  );
+                  player.seek(Duration(milliseconds: time));
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: lineContent,
                 ),
               ),
             ),

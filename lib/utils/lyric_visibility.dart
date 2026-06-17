@@ -19,3 +19,19 @@ bool isLyricLineVisible({
   );
   return (index - center).abs() <= radius;
 }
+
+double lyricLineVisibilityOpacity({
+  required int index,
+  required int currentIndex,
+  required int lineCount,
+  int radius = 3,
+}) {
+  return isLyricLineVisible(
+        index: index,
+        currentIndex: currentIndex,
+        lineCount: lineCount,
+        radius: radius,
+      )
+      ? 1.0
+      : 0.0;
+}
