@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:context_menus/context_menus.dart';
 import 'netease_api/netease_music_api.dart';
+import 'download_ui.dart';
 import 'player_model.dart';
 import 'constants/image_request.dart';
 
@@ -281,6 +282,10 @@ class _RecommendTrackListTileState extends State<_RecommendTrackListTile> {
             ContextMenuButtonConfig(
               "播放这首歌",
               onPressed: () => widget.onPlaySong(song, widget.index),
+            ),
+            ContextMenuButtonConfig(
+              "下载歌曲",
+              onPressed: () => queueSongDownload(context, song),
             ),
           ],
         ),

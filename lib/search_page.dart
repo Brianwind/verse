@@ -3,11 +3,12 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:context_menus/context_menus.dart';
 import 'netease_api/netease_music_api.dart';
+import 'download_ui.dart';
 import 'player_model.dart';
 import 'constants/image_request.dart';
 
 class SearchPage extends StatefulWidget {
-  const SearchPage({Key? key}) : super(key: key);
+  const SearchPage({super.key});
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -169,7 +170,7 @@ class _SearchPageState extends State<SearchPage> {
                       size: 64,
                       color: Theme.of(
                         context,
-                      ).colorScheme.onSurface.withOpacity(0.3),
+                      ).colorScheme.onSurface.withValues(alpha: 0.3),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -177,7 +178,7 @@ class _SearchPageState extends State<SearchPage> {
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: Theme.of(
                           context,
-                        ).colorScheme.onSurface.withOpacity(0.6),
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
                   ],
@@ -195,7 +196,7 @@ class _SearchPageState extends State<SearchPage> {
                       size: 64,
                       color: Theme.of(
                         context,
-                      ).colorScheme.onSurface.withOpacity(0.3),
+                      ).colorScheme.onSurface.withValues(alpha: 0.3),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -203,7 +204,7 @@ class _SearchPageState extends State<SearchPage> {
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: Theme.of(
                           context,
-                        ).colorScheme.onSurface.withOpacity(0.6),
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
                   ],
@@ -222,7 +223,7 @@ class _SearchPageState extends State<SearchPage> {
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: Theme.of(
                       context,
-                    ).colorScheme.onSurface.withOpacity(0.7),
+                    ).colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
               ),
@@ -251,11 +252,10 @@ class _SearchResultListTile extends StatefulWidget {
   final Function(Song2, int) onPlaySong;
 
   const _SearchResultListTile({
-    Key? key,
     required this.song,
     required this.index,
     required this.onPlaySong,
-  }) : super(key: key);
+  });
 
   @override
   State<_SearchResultListTile> createState() => _SearchResultListTileState();
@@ -291,6 +291,10 @@ class _SearchResultListTileState extends State<_SearchResultListTile> {
             ContextMenuButtonConfig(
               "播放这首歌",
               onPressed: () => widget.onPlaySong(song, widget.index),
+            ),
+            ContextMenuButtonConfig(
+              "下载歌曲",
+              onPressed: () => queueSongDownload(context, song),
             ),
           ],
         ),
@@ -334,7 +338,7 @@ class _SearchResultListTileState extends State<_SearchResultListTile> {
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(
                           context,
-                        ).colorScheme.onSurface.withOpacity(0.6),
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                     )
                     : null,

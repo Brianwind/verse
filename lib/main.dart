@@ -10,6 +10,9 @@ import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
 
 import 'auth_model.dart';
+import 'download_model.dart';
+import 'download_page.dart';
+import 'download_ui.dart';
 import 'player_model.dart';
 import 'netease_api/src/netease_api.dart';
 import 'login_page.dart';
@@ -81,6 +84,7 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthModel()),
+        ChangeNotifierProvider(create: (_) => DownloadModel()..init()),
         ChangeNotifierProvider(create: (_) => PlayerModel()),
       ],
       child: const MainApp(),
@@ -103,7 +107,15 @@ class MainApp extends StatefulWidget {
 }
 
 class _MainAppState extends State<MainApp> {
-  int _selectedIndex = NeteaseMusicApi().usc.isLogined ? 0 : 3;
+  static const int _homeTabIndex = 0;
+  static const int _searchTabIndex = 1;
+  static const int _profileTabIndex = 2;
+  static const int _downloadTabIndex = 3;
+  static const int _accountTabIndex = 4;
+  static const int _settingsTabIndex = 5;
+
+  int _selectedIndex =
+      NeteaseMusicApi().usc.isLogined ? _homeTabIndex : _accountTabIndex;
   ThemeMode _themeMode = ThemeMode.system;
   WindowEffect _windowEffect = WindowEffect.acrylic;
   AuthModel? _authModel;
@@ -144,9 +156,9 @@ class _MainAppState extends State<MainApp> {
     Provider.of<PlayerModel>(context, listen: false).syncLoginUser(userId);
 
     if (auth.isLoggedIn) {
-      if (_routeToHomeOnNextLogin && _selectedIndex == 3) {
+      if (_routeToHomeOnNextLogin && _selectedIndex == _accountTabIndex) {
         setState(() {
-          _selectedIndex = 0;
+          _selectedIndex = _homeTabIndex;
         });
       }
       _routeToHomeOnNextLogin = false;
@@ -154,9 +166,9 @@ class _MainAppState extends State<MainApp> {
       _routeToHomeOnNextLogin = true;
     }
 
-    if (!auth.isLoggedIn && _selectedIndex != 3) {
+    if (!auth.isLoggedIn && _selectedIndex != _accountTabIndex) {
       setState(() {
-        _selectedIndex = 3;
+        _selectedIndex = _accountTabIndex;
       });
     }
   }
@@ -327,6 +339,10 @@ class _MainAppState extends State<MainApp> {
                               label: Text('我的'),
                             ),
                             NavigationRailDestination(
+                              icon: Icon(Icons.download),
+                              label: Text('下载'),
+                            ),
+                            NavigationRailDestination(
                               icon: Icon(Icons.account_circle),
                               label: Text('账号'),
                             ),
@@ -340,23 +356,27 @@ class _MainAppState extends State<MainApp> {
                         Expanded(
                           child: Builder(
                             builder: (context) {
-                              if (_selectedIndex == 0) {
+                              if (_selectedIndex == _homeTabIndex) {
                                 return const HomePage();
-                              } else if (_selectedIndex == 1) {
+                              } else if (_selectedIndex == _searchTabIndex) {
                                 return const SearchPage();
-                              } else if (_selectedIndex == 2) {
+                              } else if (_selectedIndex == _profileTabIndex) {
                                 return auth.isLoggedIn
                                     ? const ProfilePage()
                                     : const LoginPage();
-                              } else if (_selectedIndex == 3) {
+                              } else if (_selectedIndex == _downloadTabIndex) {
+                                return const DownloadPage();
+                              } else if (_selectedIndex == _accountTabIndex) {
                                 return const LoginPage();
-                              } else {
+                              } else if (_selectedIndex == _settingsTabIndex) {
                                 return SettingsPage(
                                   themeMode: _themeMode,
                                   onThemeModeChanged: _onThemeModeChanged,
                                   windowEffect: _windowEffect,
                                   onWindowEffectChanged: _onWindowEffectChanged,
                                 );
+                              } else {
+                                return const HomePage();
                               }
                             },
                           ),
@@ -529,6 +549,11 @@ class PlayerBar extends StatelessWidget {
                     onPressed: () {
                       _showAddToPlaylistDialog(context, song.id, player);
                     },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.download_outlined, size: 20),
+                    tooltip: '下载歌曲',
+                    onPressed: () => queueSongDownload(context, song),
                   ),
                   IconButton(
                     icon: const FaIcon(FontAwesomeIcons.backward, size: 18),

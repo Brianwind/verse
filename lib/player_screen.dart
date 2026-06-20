@@ -7,6 +7,7 @@ import 'package:flutter/gestures.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'dart:async';
 import 'netease_api/netease_music_api.dart';
+import 'download_ui.dart';
 import 'player_model.dart';
 import 'lyrics_view.dart';
 import 'fluid_background.dart'; // 导入流体背景组件
@@ -529,6 +530,16 @@ class _PlayerScreenState extends State<PlayerScreen>
                                   player,
                                 );
                               },
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.download_outlined,
+                                color: textColor,
+                                size: 22,
+                              ),
+                              splashRadius: 20,
+                              tooltip: '下载歌曲',
+                              onPressed: () => queueSongDownload(context, song),
                             ),
                           ],
                         ),

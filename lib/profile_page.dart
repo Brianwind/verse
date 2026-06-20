@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:context_menus/context_menus.dart';
 
 import 'auth_model.dart';
+import 'download_ui.dart';
 import 'player_model.dart';
 import 'netease_api/src/netease_api.dart';
 import 'netease_api/src/api/play/bean.dart';
@@ -292,7 +293,7 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
                           Colors.transparent
                       ? Colors.transparent
                       : null,
-              child: Container(
+              child: SizedBox(
                 height: 32,
                 child: Row(
                   children: [
@@ -334,6 +335,20 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
               shadowColor: Colors.transparent,
               surfaceTintColor: Colors.transparent,
               toolbarHeight: 56,
+              actions: [
+                IconButton(
+                  tooltip: '下载全部',
+                  icon: const Icon(Icons.download_for_offline_outlined),
+                  onPressed:
+                      _playlist?.tracks == null || _playlist!.tracks!.isEmpty
+                          ? null
+                          : () => queueSongsDownload(
+                            context,
+                            _playlistSongs(),
+                            sourceName: widget.playlistName,
+                          ),
+                ),
+              ],
             ),
           ],
         ),
@@ -363,16 +378,27 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
       ),
     );
   }
+
+  List<Song2> _playlistSongs() {
+    final tracks = _playlist?.tracks;
+    if (tracks == null) return const [];
+    return tracks.map(_songFromPlaylistTrack).toList();
+  }
+}
+
+Song2 _songFromPlaylistTrack(dynamic track) {
+  return Song2()
+    ..id = track.id.toString()
+    ..name = track.name
+    ..ar = track.ar
+    ..al = track.al
+    ..dt = track.dt;
 }
 
 class _TrackListTile extends StatefulWidget {
   final dynamic playTrack;
   final dynamic playlist;
-  const _TrackListTile({
-    Key? key,
-    required this.playTrack,
-    required this.playlist,
-  }) : super(key: key);
+  const _TrackListTile({required this.playTrack, required this.playlist});
 
   @override
   State<_TrackListTile> createState() => _TrackListTileState();
@@ -392,6 +418,14 @@ class _TrackListTileState extends State<_TrackListTile> {
         // 定义右键菜单
         contextMenu: GenericContextMenu(
           buttonConfigs: [
+            ContextMenuButtonConfig(
+              "下载歌曲",
+              onPressed:
+                  () => queueSongDownload(
+                    context,
+                    _songFromPlaylistTrack(widget.playTrack),
+                  ),
+            ),
             ContextMenuButtonConfig(
               "从歌单移除歌曲",
               onPressed: () => _removeSongFromPlaylist(context),
@@ -479,14 +513,7 @@ class _TrackListTileState extends State<_TrackListTile> {
                           final List<Song2> tracks = [];
                           if (widget.playlist.tracks != null) {
                             for (final t in widget.playlist.tracks!) {
-                              final song =
-                                  Song2()
-                                    ..id = t.id
-                                    ..name = t.name
-                                    ..ar = t.ar
-                                    ..al = t.al
-                                    ..dt = t.dt;
-                              tracks.add(song);
+                              tracks.add(_songFromPlaylistTrack(t));
                             }
                           }
                           final startIndex = tracks.indexWhere(
