@@ -23,13 +23,19 @@ void main() {
 
   test('Windows runner publishes the Verse application identity', () {
     final mainSource = File('windows/runner/main.cpp').readAsStringSync();
+    final identitySource = File(
+      'windows/runner/app_identity.cpp',
+    ).readAsStringSync();
+    final identityHeader = File(
+      'windows/runner/app_identity.h',
+    ).readAsStringSync();
     final windowSource = File(
       'windows/runner/flutter_window.cpp',
     ).readAsStringSync();
     final resources = File('windows/runner/Runner.rc').readAsStringSync();
 
     expect(mainSource, contains('SetCurrentProcessExplicitAppUserModelID'));
-    expect(mainSource, contains('Verse.Player'));
+    expect(identityHeader, contains('Verse.Player'));
     expect(windowSource, contains('PKEY_AppUserModel_ID'));
     expect(
       windowSource,
@@ -37,5 +43,14 @@ void main() {
     );
     expect(resources, contains('VALUE "FileDescription", "Verse"'));
     expect(resources, contains('VALUE "ProductName", "Verse"'));
+    expect(identitySource, contains('FOLDERID_Programs'));
+    expect(identitySource, contains('IShellLinkW'));
+    expect(identitySource, contains('IPersistFile'));
+    expect(identitySource, contains('PKEY_AppUserModel_ID'));
+    expect(identitySource, contains('Verse.lnk'));
+    expect(identitySource, contains('CheckExistingShortcut'));
+    expect(identitySource, contains('ERROR_FILE_EXISTS'));
+    expect(mainSource, contains('RegisterVerseAppIdentity'));
+    expect(mainSource, contains('kVerseAppUserModelId'));
   });
 }

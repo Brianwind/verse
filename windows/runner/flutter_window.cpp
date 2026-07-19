@@ -6,12 +6,11 @@
 #include <shobjidl.h>
 #include <string>
 
+#include "app_identity.h"
 #include "flutter/generated_plugin_registrant.h"
 #include "windows_smtc.h"
 
 namespace {
-
-constexpr wchar_t kVerseAppUserModelId[] = L"Verse.Player";
 
 void ApplyVerseWindowIdentity(HWND window) {
   IPropertyStore* property_store = nullptr;

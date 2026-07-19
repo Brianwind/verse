@@ -5,8 +5,29 @@ auto bdw = bitsdojo_window_configure(BDW_CUSTOM_FRAME | BDW_HIDE_ON_STARTUP);
 #include <shobjidl.h>
 #include <windows.h>
 
+#include "app_identity.h"
 #include "flutter_window.h"
 #include "utils.h"
+
+namespace {
+
+class ScopedComInitializer {
+ public:
+  ScopedComInitializer()
+      : result_(::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED)) {}
+  ~ScopedComInitializer() {
+    if (SUCCEEDED(result_)) {
+      ::CoUninitialize();
+    }
+  }
+
+  HRESULT result() const { return result_; }
+
+ private:
+  HRESULT result_;
+};
+
+}  // namespace
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
@@ -18,8 +39,20 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   // Initialize COM, so that it is available for use in the library and/or
   // plugins.
-  ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-  ::SetCurrentProcessExplicitAppUserModelID(L"Verse.Player");
+  ScopedComInitializer com_initializer;
+  const HRESULT process_identity_result =
+      ::SetCurrentProcessExplicitAppUserModelID(kVerseAppUserModelId);
+  if (FAILED(process_identity_result)) {
+    OutputDebugStringW(
+        L"Verse: failed to set the Windows application identity.\n");
+  }
+  if (SUCCEEDED(com_initializer.result())) {
+    const HRESULT identity_result = RegisterVerseAppIdentity();
+    if (FAILED(identity_result)) {
+      OutputDebugStringW(
+          L"Verse: failed to register Windows application identity.\n");
+    }
+  }
 
   flutter::DartProject project(L"data");
 
@@ -42,6 +75,5 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     ::DispatchMessage(&msg);
   }
 
-  ::CoUninitialize();
   return EXIT_SUCCESS;
 }
