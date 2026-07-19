@@ -1,9 +1,48 @@
 #include "flutter_window.h"
 
 #include <optional>
+#include <propkey.h>
+#include <propvarutil.h>
+#include <shobjidl.h>
+#include <string>
 
 #include "flutter/generated_plugin_registrant.h"
 #include "windows_smtc.h"
+
+namespace {
+
+constexpr wchar_t kVerseAppUserModelId[] = L"Verse.Player";
+
+void ApplyVerseWindowIdentity(HWND window) {
+  IPropertyStore* property_store = nullptr;
+  if (FAILED(SHGetPropertyStoreForWindow(
+          window, IID_PPV_ARGS(&property_store)))) {
+    return;
+  }
+
+  PROPVARIANT value;
+  if (SUCCEEDED(InitPropVariantFromString(kVerseAppUserModelId, &value))) {
+    property_store->SetValue(PKEY_AppUserModel_ID, value);
+    PropVariantClear(&value);
+  }
+
+  wchar_t executable_path[MAX_PATH] = {};
+  if (GetModuleFileName(nullptr, executable_path, MAX_PATH) > 0) {
+    const std::wstring display_name_resource =
+        L"@" + std::wstring(executable_path) + L",-102";
+    if (SUCCEEDED(InitPropVariantFromString(display_name_resource.c_str(),
+                                            &value))) {
+      property_store->SetValue(
+          PKEY_AppUserModel_RelaunchDisplayNameResource, value);
+      PropVariantClear(&value);
+    }
+  }
+
+  property_store->Commit();
+  property_store->Release();
+}
+
+}  // namespace
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -14,6 +53,8 @@ bool FlutterWindow::OnCreate() {
   if (!Win32Window::OnCreate()) {
     return false;
   }
+
+  ApplyVerseWindowIdentity(GetHandle());
 
   RECT frame = GetClientArea();
 

@@ -17,7 +17,8 @@ dependencies:
   font_awesome_flutter: ^10.7.0
   json_annotation: ^4.9.0
   just_audio: ^0.9.36
-  just_audio_windows: ^0.2.2
+  just_audio_windows:
+    path: third_party/just_audio_windows
   path_provider: ^2.1.5
   pointycastle: ^3.9.1
   pretty_dio_logger: ^1.4.0
