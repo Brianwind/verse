@@ -176,6 +176,7 @@ class _MainAppState extends State<MainApp> {
   @override
   void dispose() {
     _authModel?.removeListener(_handleAuthChanged);
+    WindowsSmtcService.instance.dispose();
     super.dispose();
   }
 
