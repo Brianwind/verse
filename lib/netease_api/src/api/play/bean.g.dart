@@ -305,7 +305,11 @@ SongLyricWrap _$SongLyricWrapFromJson(Map<String, dynamic> json) {
     ..qfy = json['qfy'] as bool?
     ..lrc = Lyrics2.fromJson(json['lrc'] as Map<String, dynamic>)
     ..klyric = Lyrics2.fromJson(json['klyric']??<String, dynamic>{})
-    ..tlyric = Lyrics2.fromJson(json['tlyric']??<String, dynamic>{});
+    ..tlyric = Lyrics2.fromJson(json['tlyric']??<String, dynamic>{})
+    ..yrc = Lyrics2.fromJson(json['yrc']??<String, dynamic>{})
+    ..ytlrc = Lyrics2.fromJson(json['ytlrc']??<String, dynamic>{})
+    ..romalrc = Lyrics2.fromJson(json['romalrc']??<String, dynamic>{})
+    ..yromalrc = Lyrics2.fromJson(json['yromalrc']??<String, dynamic>{});
 }
 
 Map<String, dynamic> _$SongLyricWrapToJson(SongLyricWrap instance) => <String, dynamic>{
@@ -318,6 +322,10 @@ Map<String, dynamic> _$SongLyricWrapToJson(SongLyricWrap instance) => <String, d
       'lrc': instance.lrc,
       'klyric': instance.klyric,
       'tlyric': instance.tlyric,
+      'yrc': instance.yrc,
+      'ytlrc': instance.ytlrc,
+      'romalrc': instance.romalrc,
+      'yromalrc': instance.yromalrc,
     };
 
 SongListWrap _$SongListWrapFromJson(Map<String, dynamic> json) {

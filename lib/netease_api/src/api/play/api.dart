@@ -513,9 +513,35 @@ mixin ApiPlay {
     return DioMetaData(joinUri('/api/song/lyric'), data: params, options: joinOptions(encryptType: EncryptType.WeApi, cookies: {'os': 'pc'}));
   }
 
+  DioMetaData songLyricNewDioMetaData(String songId) {
+    var params = {
+      'id': songId,
+      'cp': false,
+      'tv': 0,
+      'lv': 0,
+      'rv': 0,
+      'kv': 0,
+      'yv': 0,
+      'ytv': 0,
+      'yrv': 0,
+    };
+    return DioMetaData(
+      joinUri('/api/song/lyric/v1'),
+      data: params,
+      options: joinOptions(encryptType: EncryptType.WeApi, cookies: {'os': 'pc'}),
+    );
+  }
+
   /// 音乐歌词
   Future<SongLyricWrap> songLyric(String songId) {
     return Https.dioProxy.postUri(songLyricDioMetaData(songId)).then((Response value) {
+      return SongLyricWrap.fromJson(value.data);
+    });
+  }
+
+  /// New lyric endpoint with YRC word timing and aligned alternate tracks.
+  Future<SongLyricWrap> songLyricNew(String songId) {
+    return Https.dioProxy.postUri(songLyricNewDioMetaData(songId)).then((Response value) {
       return SongLyricWrap.fromJson(value.data);
     });
   }

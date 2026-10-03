@@ -273,6 +273,10 @@ class SongLyricWrap extends ServerStatusBean {
   late Lyrics2 lrc;
   late Lyrics2 klyric;
   late Lyrics2 tlyric;
+  late Lyrics2 yrc;
+  late Lyrics2 ytlrc;
+  late Lyrics2 romalrc;
+  late Lyrics2 yromalrc;
 
   SongLyricWrap();
 

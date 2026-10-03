@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'download_model.dart';
 import 'player_model.dart';
 
@@ -28,12 +29,24 @@ class _SettingsPageState extends State<SettingsPage> {
   final FocusNode _downloadDirectoryFocusNode = FocusNode();
   String? _lastDownloadDirectory;
   bool _savingDownloadDirectory = false;
+  late final Future<PackageInfo> _packageInfo = PackageInfo.fromPlatform();
 
   @override
   void dispose() {
     _downloadDirectoryController.dispose();
     _downloadDirectoryFocusNode.dispose();
     super.dispose();
+  }
+
+  static String _versionLabel(AsyncSnapshot<PackageInfo> snapshot) {
+    final info = snapshot.data;
+    if (info != null) {
+      final build = info.buildNumber.trim();
+      return build.isEmpty || build == '0'
+          ? info.version
+          : '${info.version} ($build)';
+    }
+    return snapshot.hasError ? '未知' : '读取中…';
   }
 
   String _effectLabel(WindowEffect effect) {
@@ -257,6 +270,17 @@ class _SettingsPageState extends State<SettingsPage> {
                 ).colorScheme.onSurface.withValues(alpha: 0.62),
               ),
             ),
+          ),
+          const Divider(height: 28),
+          FutureBuilder<PackageInfo>(
+            future: _packageInfo,
+            builder: (context, snapshot) {
+              return ListTile(
+                leading: const Icon(Icons.info_outline),
+                title: const Text('版本'),
+                subtitle: Text(_versionLabel(snapshot)),
+              );
+            },
           ),
         ],
       ),

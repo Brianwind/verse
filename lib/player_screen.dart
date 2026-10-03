@@ -12,6 +12,7 @@ import 'player_model.dart';
 import 'lyrics_view.dart';
 import 'fluid_background.dart'; // 导入流体背景组件
 import 'constants/image_request.dart';
+import 'utils/monet_palette.dart';
 
 class PlayerScreen extends StatefulWidget {
   const PlayerScreen({super.key});
@@ -29,6 +30,8 @@ class _PlayerScreenState extends State<PlayerScreen>
 
   // 存储从封面图片提取的主题颜色
   ImageThemeColors? _themeColors;
+
+  MonetPalette get _palette => _themeColors?.monet ?? MonetPalette.fallback;
 
   @override
   void initState() {
@@ -130,22 +133,36 @@ class _PlayerScreenState extends State<PlayerScreen>
       return const Scaffold(body: Center(child: Text('暂无播放歌曲')));
     }
     final artists = song.ar?.map((a) => a.name).join(', ') ?? '';
+    final album = song.al?.name?.trim() ?? '';
     final cover = normalizeImageUrl(song.al?.picUrl);
     final duration = player.duration;
     final position = player.position;
 
-    // 根据主题颜色创建文本样式
+    // folia Monet 配色：标题用主色墨水，专辑用次要色，歌手用略透明的主色斜体。
+    final palette = _palette;
     final TextStyle titleStyle = TextStyle(
       fontSize: 34,
-      fontWeight: FontWeight.bold,
-      color:
-          _themeColors?.textColor ??
-          Theme.of(context).textTheme.titleLarge?.color,
+      fontWeight: FontWeight.w600,
+      color: palette.primary,
+      shadows: [
+        Shadow(
+          color: palette.background.withValues(alpha: 0.28),
+          offset: const Offset(0, 14),
+          blurRadius: 36,
+        ),
+      ],
     );
 
     final TextStyle artistStyle = TextStyle(
       fontSize: 22,
-      color: _themeColors?.textColor.withValues(alpha: 0.82) ?? Colors.grey,
+      fontStyle: FontStyle.italic,
+      color: palette.primary.withValues(alpha: 0.96),
+    );
+
+    final TextStyle albumStyle = TextStyle(
+      fontSize: 14,
+      letterSpacing: 0,
+      color: palette.secondary.withValues(alpha: 0.84),
     );
 
     return Scaffold(
@@ -182,11 +199,7 @@ class _PlayerScreenState extends State<PlayerScreen>
               child: IconButton(
                 icon: FaIcon(
                   FontAwesomeIcons.angleDown,
-                  color:
-                      _themeColors?.textColor ??
-                      (Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white
-                          : Theme.of(context).colorScheme.primary),
+                  color: palette.primary,
                   size: 24,
                 ),
                 padding: EdgeInsets.zero,
@@ -197,7 +210,7 @@ class _PlayerScreenState extends State<PlayerScreen>
               ),
             ),
             title: SizedBox(height: 40, child: MoveWindow()),
-            actions: [_PlayerWindowButtons(color: _themeColors?.textColor)],
+            actions: [_PlayerWindowButtons(color: palette.primary)],
           ),
         ),
       ),
@@ -220,11 +233,26 @@ class _PlayerScreenState extends State<PlayerScreen>
                 ),
               ),
             ),
+            // Monet 色幕：左上强调色晕染，向右下过渡到深色底，托住浅色文字。
             Positioned.fill(
               child: IgnorePointer(
-                child: DecoratedBox(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 400),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.08),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        palette.accent.withValues(alpha: 0.16),
+                        palette.background.withValues(
+                          alpha: MonetPalette.veilStrength,
+                        ),
+                        palette.background.withValues(
+                          alpha: MonetPalette.veilStrength + 0.08,
+                        ),
+                      ],
+                      stops: const [0, 0.44, 1],
+                    ),
                   ),
                 ),
               ),
@@ -236,11 +264,13 @@ class _PlayerScreenState extends State<PlayerScreen>
               player,
               song,
               artists,
+              album,
               cover,
               duration,
               position,
               titleStyle, // 传递标题样式
               artistStyle, // 传递艺术家样式
+              albumStyle,
             ),
 
             // 底部控制区（使用Positioned.bottom将它定位在底部）
@@ -257,11 +287,13 @@ class _PlayerScreenState extends State<PlayerScreen>
     PlayerModel player,
     Song2 song,
     String artists,
+    String album,
     String? cover,
     Duration duration,
     Duration position,
     TextStyle titleStyle, // 添加标题样式参数
     TextStyle artistStyle, // 添加艺术家样式参数
+    TextStyle albumStyle,
   ) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(48.0, 20.0, 48.0, 104.0),
@@ -335,6 +367,17 @@ class _PlayerScreenState extends State<PlayerScreen>
                           ),
                         ),
                       ),
+                      if (album.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        // 仿 folia Monet 的专辑行：小号、次要色、大写。
+                        Text(
+                          album.toUpperCase(),
+                          style: albumStyle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                       const SizedBox(height: 8),
                       Hero(
                         tag: 'song-artist-${song.id}',
@@ -364,7 +407,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                 constraints: const BoxConstraints(maxWidth: 620),
                 child: RepaintBoundary(
                   child: LyricsView(
-                    songId: song.id,
+                    song: song,
                     themeColors: _themeColors, // 传递主题颜色给歌词组件
                   ),
                 ),
@@ -384,12 +427,8 @@ class _PlayerScreenState extends State<PlayerScreen>
     Duration duration,
     Duration position,
   ) {
-    final Color progressBarColor =
-        _themeColors?.textColor ?? Theme.of(context).colorScheme.primary;
-    final Color textColor =
-        _themeColors?.textColor ??
-        Theme.of(context).textTheme.bodyMedium?.color ??
-        Colors.white;
+    final Color progressBarColor = _palette.accent;
+    final Color textColor = _palette.primary;
 
     return AnimatedPositioned(
       left: 0,

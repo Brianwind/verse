@@ -6,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:material_color_utilities/material_color_utilities.dart';
 import 'constants/image_request.dart';
 import 'utils/lru_cache.dart';
+import 'utils/monet_palette.dart';
 
 // 计算两个颜色之间的欧几里得距离的工具方法
 double _calculateColorDistance(Color color1, Color color2) {
@@ -39,6 +40,9 @@ class ImageThemeColors {
   // 次要色调
   final Color secondaryColor;
 
+  // 仿 folia Monet 的分层配色（歌词、标题、专辑、强调色）
+  final MonetPalette monet;
+
   // 表示颜色是否已成功提取
   final bool isValid;
 
@@ -47,6 +51,7 @@ class ImageThemeColors {
     required this.textColor,
     required this.primaryColor,
     required this.secondaryColor,
+    this.monet = MonetPalette.fallback,
     this.isValid = true,
   });
 
@@ -194,6 +199,10 @@ class _ColorCache {
         textColor: textColor,
         primaryColor: dominantColor,
         secondaryColor: secondaryColor,
+        monet: MonetPalette.fromCoverColors([
+          dominantColor,
+          ...palette.paletteColors.map((e) => e.color),
+        ]),
       );
     } catch (e) {
       debugPrint('颜色提取错误: $e');
